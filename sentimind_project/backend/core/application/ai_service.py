@@ -1,4 +1,4 @@
-from transformers import pipeline
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 
 
 class MiningEngine:
@@ -40,12 +40,20 @@ class MiningEngine:
     @classmethod
     def get_classifier(cls):
         if cls._classifier is None:
-            # Modelo multilingüe optimizado para Zero-Shot en español
             print("🧠 Cargando modelo neuronal multilingüe... (esto pasa solo una vez)")
+            
+            # Nombre del modelo multilingüe
+            model_name = "joeddav/xlm-roberta-large-xnli"
+            # model= "facebook/bart-large-mnli"
+            
+            # Cargar tokenizer con use_fast=False para evitar errores de compatibilidad
+            tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
+            model = AutoModelForSequenceClassification.from_pretrained(model_name)
+            
             cls._classifier = pipeline(
-                "zero-shot-classification", 
-                #model="facebook/bart-large-mnli"
-                model="joeddav/xlm-roberta-large-xnli",  # Modelo multilingüe!
+                "zero-shot-classification",
+                model=model,
+                tokenizer=tokenizer,
                 device=-1  # CPU (cambiar a 0 para GPU)
             )
             print("✅ Modelo multilingüe cargado exitosamente!")

@@ -2,11 +2,20 @@ import axios from "axios";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
+// Categoría detectada con su confianza
+export interface DetectedCategory {
+  name: string;
+  confidence: number;
+}
+
 export interface Post {
   id: number;
   content: string;
-  category: string;
-  confidence: number;
+  category: string; // Categoría principal (compatibilidad)
+  confidence: number; // Confianza principal (compatibilidad)
+  primary_category: string;
+  primary_confidence: number;
+  categories: DetectedCategory[]; // Múltiples categorías detectadas
   created_at: string;
 }
 

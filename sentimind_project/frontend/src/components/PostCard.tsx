@@ -9,6 +9,12 @@ export default function PostCard({ post }: PostCardProps) {
   const config = getCategoryConfig(post.category);
   const confidencePercent = Math.round(post.confidence * 100);
 
+  // Obtener categorías detectadas (usar el array o crear uno con la principal)
+  const categories =
+    post.categories?.length > 0
+      ? post.categories
+      : [{ name: post.category, confidence: post.confidence }];
+
   return (
     <div
       style={{
@@ -37,36 +43,61 @@ export default function PostCard({ post }: PostCardProps) {
       />
 
       <div style={{ padding: "24px" }}>
-        {/* Header con categoría y confianza */}
+        {/* Header con categorías detectadas */}
         <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "flex-start",
             marginBottom: "16px",
+            flexWrap: "wrap",
+            gap: "8px",
           }}
         >
-          {/* Badge de categoría */}
+          {/* Badges de categorías (múltiples) */}
           <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "8px 16px",
-              borderRadius: "30px",
-              backgroundColor: config.bgColor,
-              color: config.textColor,
-              fontWeight: 700,
-              fontSize: "0.75rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}
+            style={{ display: "flex", flexWrap: "wrap", gap: "8px", flex: 1 }}
           >
-            <span style={{ fontSize: "1rem" }}>{config.emoji}</span>
-            <span>{post.category}</span>
+            {categories.map((cat, index) => {
+              const catConfig = getCategoryConfig(cat.name);
+              const isSecondary = index > 0;
+              return (
+                <div
+                  key={cat.name}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: isSecondary ? "5px 10px" : "8px 16px",
+                    borderRadius: "30px",
+                    backgroundColor: catConfig.bgColor,
+                    color: catConfig.textColor,
+                    fontWeight: isSecondary ? 600 : 700,
+                    fontSize: isSecondary ? "0.65rem" : "0.75rem",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    opacity: isSecondary ? 0.85 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: isSecondary ? "0.8rem" : "1rem" }}>
+                    {catConfig.emoji}
+                  </span>
+                  <span>{cat.name}</span>
+                  <span
+                    style={{
+                      fontSize: "0.6rem",
+                      opacity: 0.7,
+                      marginLeft: "2px",
+                    }}
+                  >
+                    {Math.round(cat.confidence * 100)}%
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
-          {/* Indicador de confianza */}
+          {/* Indicador de confianza principal */}
           <div style={{ textAlign: "right" }}>
             <div
               style={{

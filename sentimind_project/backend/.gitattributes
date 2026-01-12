@@ -1,0 +1,9 @@
+# Forzar LF para scripts de shell (necesario para Docker/Linux)
+*.sh text eol=lf
+entrypoint.sh text eol=lf
+
+# Archivos de configuración
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf

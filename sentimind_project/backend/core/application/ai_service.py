@@ -44,19 +44,28 @@ class MiningEngine:
             
             # Nombre del modelo multilingüe
             model_name = "joeddav/xlm-roberta-large-xnli"
-            # model= "facebook/bart-large-mnli"
             
-            # Cargar tokenizer con use_fast=False para evitar errores de compatibilidad
-            tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
-            model = AutoModelForSequenceClassification.from_pretrained(model_name)
-            
-            cls._classifier = pipeline(
-                "zero-shot-classification",
-                model=model,
-                tokenizer=tokenizer,
-                device=-1  # CPU (cambiar a 0 para GPU)
-            )
-            print("✅ Modelo multilingüe cargado exitosamente!")
+            # Cargar tokenizer explícitamente con use_fast=False
+            # Requiere 'sentencepiece' instalado
+            try:
+                tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
+                cls._classifier = pipeline(
+                    "zero-shot-classification",
+                    model=model_name,
+                    tokenizer=tokenizer,
+                    device=-1
+                )
+            except Exception as e:
+                print(f"⚠️ Error cargando modelo XLM-RoBERTa: {e}")
+                print("🔄 Intentando fallback a modelo ligero (BART)...")
+                model_name = "facebook/bart-large-mnli"
+                cls._classifier = pipeline(
+                    "zero-shot-classification",
+                    model=model_name,
+                    device=-1
+                )
+                
+            print(f"✅ Modelo {model_name} cargado exitosamente!")
         return cls._classifier
 
     @classmethod

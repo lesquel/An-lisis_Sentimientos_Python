@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+
+# ============================================
+# Frontend Dockerfile para DESARROLLO con Bun
+# ============================================
+
+FROM oven/bun:1
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY package.json bun.lock* ./
+
+# Instalar dependencias
+RUN bun install
+
+# Copiar código fuente
+COPY . .
+
+# Exponer puerto de Vite
+EXPOSE 5173
+
+# Comando para desarrollo con hot-reload
+CMD ["bun", "run", "dev", "--host", "0.0.0.0"]

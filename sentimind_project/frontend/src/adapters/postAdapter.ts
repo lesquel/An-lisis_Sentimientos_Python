@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = "http://127.0.0.1:8000/api";
+// Usar variable de entorno de Vite, con fallback para desarrollo
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
 
 // Categoría detectada con su confianza
 export interface DetectedCategory {

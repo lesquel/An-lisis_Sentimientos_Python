@@ -16,8 +16,16 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.http import JsonResponse
+
+
+def health_check(request):
+    """Health check endpoint for Render"""
+    return JsonResponse({"status": "ok", "message": "SentiMind API is running"})
+
 
 urlpatterns = [
+    path('', health_check, name='health-check'),
     path('admin/', admin.site.urls),
     path('api/', include('core.urls')),
 ]

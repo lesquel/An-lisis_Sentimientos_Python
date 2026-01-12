@@ -35,12 +35,19 @@ FROM python:3.13-slim-bookworm AS runtime
 
 WORKDIR /app
 
+# Instalar bash para el entrypoint
+RUN apt-get update && apt-get install -y --no-install-recommends bash \
+    && rm -rf /var/lib/apt/lists/*
+
 # Crear usuario no-root para seguridad
 RUN groupadd --gid 1000 appgroup && \
     useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
 
 # Copiar el entorno virtual desde el builder
 COPY --from=builder --chown=appuser:appgroup /app /app
+
+# Hacer el entrypoint ejecutable
+RUN chmod +x /app/entrypoint.sh
 
 # Configurar el PATH para usar el entorno virtual
 ENV PATH="/app/.venv/bin:$PATH"
@@ -57,5 +64,5 @@ EXPOSE 8000
 # Cambiar a usuario no-root
 USER appuser
 
-# Usar gunicorn para producción (detecta el puerto correctamente)
-CMD ["sh", "-c", "gunicorn sentimind.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 2 --timeout 120"]
+# Usar entrypoint script
+CMD ["/app/entrypoint.sh"]

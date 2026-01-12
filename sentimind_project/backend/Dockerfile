@@ -47,8 +47,14 @@ RUN groupadd --gid 1000 appgroup && \
 COPY --from=builder --chown=appuser:appgroup /app /app
 
 # Crear directorios con permisos de escritura
-RUN mkdir -p /app/data /app/staticfiles && \
-    chown -R appuser:appgroup /app/data /app/staticfiles
+# Incluye .cache para modelos de HuggingFace
+RUN mkdir -p /app/data /app/staticfiles /app/.cache && \
+    chown -R appuser:appgroup /app/data /app/staticfiles /app/.cache
+
+# Configurar HuggingFace para usar el directorio de cache correcto
+ENV HF_HOME=/app/.cache
+ENV TRANSFORMERS_CACHE=/app/.cache
+ENV HUGGINGFACE_HUB_CACHE=/app/.cache
 
 # Hacer el entrypoint ejecutable
 RUN chmod +x /app/entrypoint.sh

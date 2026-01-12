@@ -42,30 +42,53 @@ class MiningEngine:
         if cls._classifier is None:
             print("🧠 Cargando modelo neuronal multilingüe... (esto pasa solo una vez)")
             
-            # Nombre del modelo multilingüe
-            model_name = "joeddav/xlm-roberta-large-xnli"
+            # Lista de modelos a intentar (en orden de preferencia)
+            models_to_try = [
+                ("joeddav/xlm-roberta-large-xnli", True),   # (nombre, usa sentencepiece)
+                ("facebook/bart-large-mnli", False),
+                ("typeform/distilbert-base-uncased-mnli", False),  # Más ligero
+            ]
             
-            # Cargar tokenizer explícitamente con use_fast=False
-            # Requiere 'sentencepiece' instalado
-            try:
-                tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
-                cls._classifier = pipeline(
-                    "zero-shot-classification",
-                    model=model_name,
-                    tokenizer=tokenizer,
-                    device=-1
+            last_error = None
+            loaded_model = None
+            
+            for model_name, use_slow_tokenizer in models_to_try:
+                try:
+                    print(f"📦 Intentando cargar: {model_name}")
+                    
+                    if use_slow_tokenizer:
+                        tokenizer = AutoTokenizer.from_pretrained(
+                            model_name, 
+                            use_fast=False,
+                            local_files_only=False
+                        )
+                        cls._classifier = pipeline(
+                            "zero-shot-classification",
+                            model=model_name,
+                            tokenizer=tokenizer,
+                            device=-1
+                        )
+                    else:
+                        cls._classifier = pipeline(
+                            "zero-shot-classification",
+                            model=model_name,
+                            device=-1
+                        )
+                    
+                    loaded_model = model_name
+                    print(f"✅ Modelo {model_name} cargado exitosamente!")
+                    break
+                    
+                except Exception as e:
+                    last_error = e
+                    print(f"⚠️ Error cargando {model_name}: {e}")
+                    continue
+            
+            if cls._classifier is None:
+                raise RuntimeError(
+                    f"No se pudo cargar ningún modelo de clasificación. Último error: {last_error}"
                 )
-            except Exception as e:
-                print(f"⚠️ Error cargando modelo XLM-RoBERTa: {e}")
-                print("🔄 Intentando fallback a modelo ligero (BART)...")
-                model_name = "facebook/bart-large-mnli"
-                cls._classifier = pipeline(
-                    "zero-shot-classification",
-                    model=model_name,
-                    device=-1
-                )
-                
-            print(f"✅ Modelo {model_name} cargado exitosamente!")
+        
         return cls._classifier
 
     @classmethod

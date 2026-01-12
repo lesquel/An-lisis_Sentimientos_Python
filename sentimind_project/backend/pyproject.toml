@@ -8,6 +8,17 @@ dependencies = [
     "django-cors-headers>=4.9.0",
     "django-filter>=25.2",
     "djangorestframework>=3.16.1",
-    "torch>=2.9.1",
     "transformers>=4.57.3",
+    "gunicorn>=23.0.0",
+    "torch",
 ]
+
+# Índice de PyTorch CPU-only (reduce de 2GB a 200MB)
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+

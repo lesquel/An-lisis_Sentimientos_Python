@@ -1,0 +1,11 @@
+# Build and start command for Render
+# Render detecta este archivo automáticamente
+
+# Build command
+build:
+  - uv sync --frozen --no-dev
+  - python manage.py collectstatic --noinput
+  - python manage.py migrate --noinput
+
+# Start command  
+start: gunicorn sentimind.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120

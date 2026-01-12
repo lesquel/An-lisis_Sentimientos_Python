@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ============================================
-# Backend Dockerfile con UV
+# Backend Dockerfile con UV - OPTIMIZADO
 # ============================================
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
@@ -12,6 +12,8 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 # Copiar desde la cache en lugar de link (para Docker)
 ENV UV_LINK_MODE=copy
+# Forzar PyTorch CPU-only (reduce de 2GB a 200MB)
+ENV UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
 
 # Instalar dependencias primero (mejor caching)
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -48,11 +50,12 @@ ENV PYTHONDONTWRITEBYTECODE=1
 # Variables de Django
 ENV DJANGO_SETTINGS_MODULE=sentimind.settings
 
-# Exponer puerto
+# Puerto para Render y otros servicios
+ENV PORT=8000
 EXPOSE 8000
 
 # Cambiar a usuario no-root
 USER appuser
 
-# Comando para ejecutar la aplicación
-CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+# Usar gunicorn para producción (detecta el puerto correctamente)
+CMD ["sh", "-c", "gunicorn sentimind.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --threads 2 --timeout 120"]

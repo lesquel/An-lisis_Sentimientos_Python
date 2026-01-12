@@ -46,8 +46,9 @@ RUN groupadd --gid 1000 appgroup && \
 # Copiar el entorno virtual desde el builder
 COPY --from=builder --chown=appuser:appgroup /app /app
 
-# Crear directorio de datos con permisos de escritura para SQLite
-RUN mkdir -p /app/data && chown appuser:appgroup /app/data
+# Crear directorios con permisos de escritura
+RUN mkdir -p /app/data /app/staticfiles && \
+    chown -R appuser:appgroup /app/data /app/staticfiles
 
 # Hacer el entrypoint ejecutable
 RUN chmod +x /app/entrypoint.sh

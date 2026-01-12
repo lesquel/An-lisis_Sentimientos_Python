@@ -53,7 +53,6 @@ RUN mkdir -p /app/data /app/staticfiles /app/.cache && \
 
 # Configurar HuggingFace para usar el directorio de cache correcto
 ENV HF_HOME=/app/.cache
-ENV TRANSFORMERS_CACHE=/app/.cache
 ENV HUGGINGFACE_HUB_CACHE=/app/.cache
 
 # Hacer el entrypoint ejecutable

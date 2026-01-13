@@ -5,6 +5,7 @@ from django.db import transaction
 from core.models import Post, Category, PostCategory
 from core.infrastructure.serializers import PostSerializer
 from core.application.ai_service import MiningEngine
+import traceback
 
 
 class PostListCreateView(generics.ListCreateAPIView):
@@ -31,39 +32,59 @@ class PostListCreateView(generics.ListCreateAPIView):
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
-        content = request.data.get('content')
-        
-        if not content or len(content.strip()) < 3:
-            return Response(
-                {"error": "El contenido debe tener al menos 3 caracteres"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # 1. Llamar a la capa de minería (Lógica de Negocio) - ahora retorna múltiples categorías
-        analysis = MiningEngine.analyze(content)
-        
-        # 2. Crear la entidad Post
-        post = Post.objects.create(
-            content=content,
-            primary_category=analysis['primary_category'],
-            primary_confidence=analysis['primary_confidence']
-        )
-        
-        # 3. Crear las relaciones con las categorías detectadas
-        for cat_data in analysis['categories']:
-            # Obtener o crear la categoría
-            category, _ = Category.objects.get_or_create(name=cat_data['name'])
+        try:
+            content = request.data.get('content')
             
-            # Crear la relación Post-Category
-            PostCategory.objects.create(
-                post=post,
-                category=category,
-                confidence=cat_data['confidence']
+            if not content or len(content.strip()) < 3:
+                return Response(
+                    {"error": "El contenido debe tener al menos 3 caracteres"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 1. Llamar a la capa de minería (Lógica de Negocio)
+            try:
+                analysis = MiningEngine.analyze(content)
+            except Exception as e:
+                print(f"⚠️ Error en análisis: {e}")
+                traceback.print_exc()
+                # Fallback: crear post sin categorización
+                analysis = {
+                    "categories": [{"name": "Reflexión", "confidence": 0.5}],
+                    "primary_category": "Reflexión",
+                    "primary_confidence": 0.5,
+                    "method": "fallback-error"
+                }
+            
+            # 2. Crear la entidad Post
+            post = Post.objects.create(
+                content=content,
+                primary_category=analysis['primary_category'],
+                primary_confidence=analysis['primary_confidence']
             )
-        
-        # 4. Serializar respuesta
-        serializer = self.get_serializer(post)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+            # 3. Crear las relaciones con las categorías detectadas
+            for cat_data in analysis['categories']:
+                # Obtener o crear la categoría
+                category, _ = Category.objects.get_or_create(name=cat_data['name'])
+                
+                # Crear la relación Post-Category
+                PostCategory.objects.create(
+                    post=post,
+                    category=category,
+                    confidence=cat_data['confidence']
+                )
+            
+            # 4. Serializar respuesta
+            serializer = self.get_serializer(post)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            print(f"❌ Error creando post: {e}")
+            traceback.print_exc()
+            return Response(
+                {"error": f"Error interno del servidor: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class CategoryListView(generics.GenericAPIView):

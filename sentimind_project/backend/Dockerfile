@@ -1,8 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ============================================
-# Backend Dockerfile con UV - LIGERO (sin PyTorch)
-# Usa HuggingFace Inference API en lugar de modelo local
+# Backend Dockerfile con UV + PyTorch + XLM-RoBERTa
 # ============================================
 
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
@@ -13,6 +12,8 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 # Copiar desde la cache en lugar de link (para Docker)
 ENV UV_LINK_MODE=copy
+# Forzar PyTorch CPU-only (reduce de 2GB a 200MB)
+ENV UV_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
 
 # Instalar dependencias primero (mejor caching)
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -45,9 +46,16 @@ RUN groupadd --gid 1000 appgroup && \
 # Copiar el entorno virtual desde el builder
 COPY --from=builder --chown=appuser:appgroup /app /app
 
-# Crear directorios con permisos de escritura
-RUN mkdir -p /app/data /app/staticfiles && \
-    chown -R appuser:appgroup /app/data /app/staticfiles
+# Crear directorios con permisos de escritura para:
+# - /app/data: base de datos SQLite
+# - /app/staticfiles: archivos estáticos
+# - /app/.cache: modelos de HuggingFace
+RUN mkdir -p /app/data /app/staticfiles /app/.cache && \
+    chown -R appuser:appgroup /app/data /app/staticfiles /app/.cache
+
+# Configurar HuggingFace para usar el directorio de cache correcto
+ENV HF_HOME=/app/.cache
+ENV HUGGINGFACE_HUB_CACHE=/app/.cache
 
 # Hacer el entrypoint ejecutable
 RUN chmod +x /app/entrypoint.sh

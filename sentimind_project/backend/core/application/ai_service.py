@@ -1,17 +1,108 @@
-import re
+"""
+Motor de Minería de Texto con HuggingFace Inference API.
+Usa el modelo XLM-RoBERTa (2GB) en la nube de HuggingFace.
+"""
 import os
+import requests
+import time
+
+
+class HuggingFaceInferenceAPI:
+    """
+    Cliente para la HuggingFace Inference API.
+    Permite usar modelos grandes sin cargarlos en memoria local.
+    """
+    
+    # Modelo multilingüe potente para zero-shot classification
+    MODEL_ID = "joeddav/xlm-roberta-large-xnli"
+    API_URL = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
+    
+    # Timeout y reintentos
+    TIMEOUT = 60  # segundos (el modelo puede tardar en cargar la primera vez)
+    MAX_RETRIES = 3
+    
+    @classmethod
+    def get_headers(cls):
+        """Obtiene headers con token de autenticación si está disponible."""
+        token = os.environ.get('HF_TOKEN') or os.environ.get('HUGGINGFACE_TOKEN')
+        if token:
+            return {"Authorization": f"Bearer {token}"}
+        return {}
+    
+    @classmethod
+    def classify(cls, text: str, labels: list, hypothesis_template: str = "Este texto expresa {}") -> dict:
+        """
+        Clasifica texto usando la API de HuggingFace.
+        
+        Args:
+            text: Texto a clasificar
+            labels: Lista de etiquetas posibles
+            hypothesis_template: Template para zero-shot
+            
+        Returns:
+            dict con labels y scores ordenados
+        """
+        payload = {
+            "inputs": text,
+            "parameters": {
+                "candidate_labels": labels,
+                "hypothesis_template": hypothesis_template,
+                "multi_label": True
+            }
+        }
+        
+        headers = cls.get_headers()
+        last_error = None
+        
+        for attempt in range(cls.MAX_RETRIES):
+            try:
+                response = requests.post(
+                    cls.API_URL,
+                    headers=headers,
+                    json=payload,
+                    timeout=cls.TIMEOUT
+                )
+                
+                if response.status_code == 200:
+                    return response.json()
+                
+                # Si el modelo está cargando, esperar y reintentar
+                if response.status_code == 503:
+                    data = response.json()
+                    wait_time = data.get('estimated_time', 20)
+                    print(f"⏳ Modelo cargando, esperando {wait_time}s...")
+                    time.sleep(min(wait_time, 30))
+                    continue
+                
+                # Error de rate limit
+                if response.status_code == 429:
+                    print("⚠️ Rate limit alcanzado, esperando...")
+                    time.sleep(5)
+                    continue
+                
+                last_error = f"HTTP {response.status_code}: {response.text}"
+                
+            except requests.exceptions.Timeout:
+                last_error = "Timeout en la API"
+                print(f"⏱️ Timeout (intento {attempt + 1}/{cls.MAX_RETRIES})")
+            except requests.exceptions.RequestException as e:
+                last_error = str(e)
+                print(f"⚠️ Error de conexión: {e}")
+            
+            time.sleep(2)
+        
+        raise RuntimeError(f"Error en HuggingFace API después de {cls.MAX_RETRIES} intentos: {last_error}")
 
 
 class RuleBasedAnalyzer:
     """
     Analizador de sentimientos basado en reglas (keywords).
-    Se usa como fallback cuando los modelos de IA no están disponibles.
+    Se usa como fallback cuando la API no está disponible.
     """
     
-    # Diccionario de palabras clave por categoría (español)
     KEYWORDS = {
         "Alegría": ["feliz", "contento", "alegre", "genial", "maravilloso", "increíble", "fantástico", 
-                   "excelente", "bien", "super", "wow", "yay", "jaja", "😊", "😄", "🎉", "❤️", "amor",
+                   "excelente", "bien", "super", "wow", "yay", "jaja", "😊", "😄", "🎉", "❤️",
                    "gracias", "agradecido", "bendecido", "perfecto", "éxito", "logré", "conseguí"],
         "Tristeza": ["triste", "llorar", "deprimido", "solo", "soledad", "melancolía", "pena", 
                     "dolor", "sufrir", "mal", "😢", "😭", "💔", "extraño", "perdí", "murió", "falleció"],
@@ -20,7 +111,7 @@ class RuleBasedAnalyzer:
         "Miedo": ["miedo", "terror", "asustado", "pánico", "nervioso", "ansioso", "preocupado",
                  "temo", "aterrado", "😰", "😨", "😱", "horror", "susto"],
         "Sorpresa": ["sorpresa", "increíble", "no puedo creer", "wow", "impresionante", "inesperado",
-                    "😮", "😲", "🤯", "qué", "cómo", "en serio"],
+                    "😮", "😲", "🤯", "en serio"],
         "Amor": ["amor", "te amo", "te quiero", "enamorado", "cariño", "❤️", "💕", "💗", "😍", 
                 "beso", "abrazo", "pareja", "novio", "novia", "esposo", "esposa"],
         "Humor": ["jaja", "jeje", "lol", "😂", "🤣", "gracioso", "chistoso", "divertido", "risa",
@@ -31,7 +122,7 @@ class RuleBasedAnalyzer:
         "Queja": ["queja", "mal servicio", "terrible", "pésimo", "horrible", "no funciona", 
                  "decepcionado", "peor", "basura", "estafa"],
         "Consejo": ["consejo", "recomiendo", "deberías", "tip", "sugerencia", "prueba", "intenta"],
-        "Pregunta": ["?", "cómo", "qué", "cuál", "cuándo", "dónde", "por qué", "alguien sabe",
+        "Pregunta": ["?", "cómo", "cuál", "cuándo", "dónde", "por qué", "alguien sabe",
                     "ayuda", "pueden", "conocen"],
         "Reflexión": ["pienso", "creo que", "reflexión", "la vida", "sentido", "aprendí", "me doy cuenta"],
         "Nostalgia": ["extraño", "recuerdo", "antes", "aquellos tiempos", "cuando era", "ojalá"],
@@ -43,7 +134,9 @@ class RuleBasedAnalyzer:
         "Envidia": ["envidia", "quisiera", "ojalá tuviera", "suerte la tuya"],
         "Asco": ["asco", "asqueroso", "repugnante", "🤮", "qué asco"],
         "Polémica": ["opinión impopular", "polémica", "controversial", "debate", "discusión"],
-        "Terror": ["terror", "escalofriante", "pesadilla", "paranormal", "fantasma", "👻", "💀"]
+        "Terror": ["terror", "escalofriante", "pesadilla", "paranormal", "fantasma", "👻", "💀"],
+        "Odio": ["odio", "detesto", "aborrezco", "no soporto"],
+        "Celos": ["celos", "celoso", "celosa", "desconfianza"]
     }
     
     @classmethod
@@ -57,17 +150,12 @@ class RuleBasedAnalyzer:
             for keyword in keywords:
                 if keyword.lower() in text_lower:
                     score += 1
-            # Normalizar score
             scores[category] = min(score / 3, 1.0) if score > 0 else 0.0
         
-        # Si no hay coincidencias, asignar "Reflexión" por defecto
         if all(s == 0 for s in scores.values()):
             scores["Reflexión"] = 0.5
         
-        # Ordenar por score
         sorted_scores = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-        
-        # Obtener categorías detectadas
         primary = sorted_scores[0]
         threshold = primary[1] * 0.8
         
@@ -91,144 +179,86 @@ class RuleBasedAnalyzer:
 class MiningEngine:
     """
     Motor de Minería de Texto.
-    Intenta usar modelos de IA, con fallback a análisis basado en reglas.
+    Usa HuggingFace Inference API para clasificación con XLM-RoBERTa.
     """
     
+    # Lista completa de 25 categorías emocionales
     TAXONOMY = [
+        # Emociones básicas
         "Alegría", "Tristeza", "Enojo", "Miedo", "Sorpresa", "Asco",
+        # Emociones sociales
         "Amor", "Odio", "Vergüenza", "Orgullo", "Envidia", "Celos",
+        # Tipos de contenido
         "Humor", "Inspiración", "Confesión", "Queja", "Consejo",
         "Pregunta", "Reflexión", "Nostalgia", "Ansiedad", "Frustración",
+        # Contenido especial
         "Sarcasmo", "Polémica", "Terror"
     ]
     
     HYPOTHESIS_TEMPLATE = "Este texto expresa {}"
-    RELATIVE_THRESHOLD = 0.97
+    RELATIVE_THRESHOLD = 0.90  # Umbral para detectar emociones secundarias
     MAX_EMOTIONS = 3
-
-    _classifier = None
-    _use_ai = None  # None = no determinado, True = usar IA, False = usar reglas
-
-    @classmethod
-    def _try_load_ai_model(cls):
-        """Intenta cargar un modelo de IA. Retorna True si tiene éxito."""
-        if cls._use_ai is not None:
-            return cls._use_ai
-        
-        # Verificar si debemos usar IA o no (por defecto desactivado en producción)
-        use_ai_env = os.environ.get('USE_AI_MODEL', 'false').lower()
-        if use_ai_env in ('false', '0', 'no'):
-            print("🔧 Modo rule-based activado (USE_AI_MODEL=false)")
-            cls._use_ai = False
-            return False
-        
-        try:
-            from transformers import pipeline, AutoTokenizer
-            
-            print("🧠 Intentando cargar modelo de IA...")
-            
-            # Usar modelo más ligero primero
-            models_to_try = [
-                ("typeform/distilbert-base-uncased-mnli", False),  # Más ligero
-                ("facebook/bart-large-mnli", False),
-            ]
-            
-            for model_name, use_slow_tokenizer in models_to_try:
-                try:
-                    print(f"📦 Cargando: {model_name}")
-                    
-                    if use_slow_tokenizer:
-                        tokenizer = AutoTokenizer.from_pretrained(
-                            model_name, 
-                            use_fast=False,
-                            local_files_only=False
-                        )
-                        cls._classifier = pipeline(
-                            "zero-shot-classification",
-                            model=model_name,
-                            tokenizer=tokenizer,
-                            device=-1
-                        )
-                    else:
-                        cls._classifier = pipeline(
-                            "zero-shot-classification",
-                            model=model_name,
-                            device=-1
-                        )
-                    
-                    print(f"✅ Modelo {model_name} cargado!")
-                    cls._use_ai = True
-                    return True
-                    
-                except Exception as e:
-                    print(f"⚠️ Error con {model_name}: {e}")
-                    continue
-            
-            print("⚠️ No se pudo cargar ningún modelo de IA")
-            cls._use_ai = False
-            return False
-            
-        except ImportError as e:
-            print(f"⚠️ Transformers no disponible: {e}")
-            cls._use_ai = False
-            return False
-        except Exception as e:
-            print(f"⚠️ Error general cargando IA: {e}")
-            cls._use_ai = False
-            return False
 
     @classmethod
     def analyze(cls, text: str) -> dict:
         """
         Analiza un texto y retorna múltiples emociones detectadas.
-        Usa IA si está disponible, sino usa análisis basado en reglas.
+        Usa la API de HuggingFace con fallback a reglas.
         """
-        # Intentar usar IA primero
-        if cls._use_ai is None:
-            cls._try_load_ai_model()
+        # Verificar si debemos usar solo reglas
+        use_rules_only = os.environ.get('USE_RULES_ONLY', 'false').lower() in ('true', '1', 'yes')
         
-        if cls._use_ai and cls._classifier:
-            try:
-                return cls._analyze_with_ai(text)
-            except Exception as e:
-                print(f"⚠️ Error en análisis IA: {e}")
-                # Fallback a reglas
-                return RuleBasedAnalyzer.analyze(text)
-        else:
+        if use_rules_only:
             return RuleBasedAnalyzer.analyze(text)
-    
-    @classmethod
-    def _analyze_with_ai(cls, text: str) -> dict:
-        """Análisis usando modelo de IA."""
-        result = cls._classifier(
-            text, 
-            cls.TAXONOMY, 
-            hypothesis_template=cls.HYPOTHESIS_TEMPLATE,
-            multi_label=True
-        )
         
-        all_scores = dict(zip(result['labels'], result['scores']))
-        max_score = result['scores'][0]
-        threshold = max_score * cls.RELATIVE_THRESHOLD
-        
-        detected_categories = []
-        for label, score in zip(result['labels'], result['scores']):
-            if score >= threshold and len(detected_categories) < cls.MAX_EMOTIONS:
-                detected_categories.append({
-                    "name": label,
-                    "confidence": round(score, 2)
-                })
-        
-        if not detected_categories:
-            detected_categories = [{
-                "name": result['labels'][0],
-                "confidence": round(result['scores'][0], 2)
-            }]
-        
-        return {
-            "categories": detected_categories,
-            "primary_category": result['labels'][0],
-            "primary_confidence": round(result['scores'][0], 2),
-            "all_scores": {k: round(v, 2) for k, v in all_scores.items()},
-            "method": "ai-model"
-        }
+        try:
+            print(f"🧠 Analizando con XLM-RoBERTa: '{text[:50]}...'")
+            
+            result = HuggingFaceInferenceAPI.classify(
+                text=text,
+                labels=cls.TAXONOMY,
+                hypothesis_template=cls.HYPOTHESIS_TEMPLATE
+            )
+            
+            # Procesar resultado de la API
+            labels = result.get('labels', [])
+            scores = result.get('scores', [])
+            
+            if not labels or not scores:
+                print("⚠️ Respuesta vacía de la API, usando fallback")
+                return RuleBasedAnalyzer.analyze(text)
+            
+            # Crear diccionario de scores
+            all_scores = dict(zip(labels, scores))
+            
+            # Obtener categorías que superen el umbral relativo
+            max_score = scores[0]
+            threshold = max_score * cls.RELATIVE_THRESHOLD
+            
+            detected_categories = []
+            for label, score in zip(labels, scores):
+                if score >= threshold and len(detected_categories) < cls.MAX_EMOTIONS:
+                    detected_categories.append({
+                        "name": label,
+                        "confidence": round(score, 2)
+                    })
+            
+            if not detected_categories:
+                detected_categories = [{
+                    "name": labels[0],
+                    "confidence": round(scores[0], 2)
+                }]
+            
+            print(f"✅ Resultado: {detected_categories[0]['name']} ({detected_categories[0]['confidence']})")
+            
+            return {
+                "categories": detected_categories,
+                "primary_category": labels[0],
+                "primary_confidence": round(scores[0], 2),
+                "all_scores": {k: round(v, 2) for k, v in all_scores.items()},
+                "method": "xlm-roberta-api"
+            }
+            
+        except Exception as e:
+            print(f"⚠️ Error en API, usando fallback: {e}")
+            return RuleBasedAnalyzer.analyze(text)

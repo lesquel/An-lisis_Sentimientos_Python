@@ -1,4 +1,4 @@
-from rest_framework import generics, status, permissions
+from rest_framework import generics, status
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db import transaction
@@ -8,29 +8,16 @@ from core.application.ai_service import MiningEngine
 import traceback
 
 
-class IsAuthenticatedOrReadOnly(permissions.BasePermission):
-    """
-    Permite acceso de lectura a todos, pero escritura solo a usuarios autenticados.
-    """
-    def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        return request.user and request.user.is_authenticated
-
-
 class PostListCreateView(generics.ListCreateAPIView):
     """
     Endpoint principal:
     - GET: Lista posts con filtro por categoría (?category=Alegría o ?primary_category=Alegría)
     - POST: Crea un post y ejecuta la IA automáticamente (detecta múltiples emociones).
-    
-    Requiere autenticación para crear posts.
     """
-    queryset = Post.objects.select_related('author').prefetch_related('post_categories__category').all()
+    queryset = Post.objects.prefetch_related('post_categories__category').all()
     serializer_class = PostSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['primary_category']  # Filtrar por categoría principal
-    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         """Permite filtrar por cualquier categoría (no solo la principal)."""
@@ -40,16 +27,6 @@ class PostListCreateView(generics.ListCreateAPIView):
         category = self.request.query_params.get('category')
         if category:
             queryset = queryset.filter(categories__name=category).distinct()
-        
-        # Filtro por autor (opcional)
-        author = self.request.query_params.get('author')
-        if author:
-            queryset = queryset.filter(author__username=author)
-        
-        # Filtro por posts propios
-        mine = self.request.query_params.get('mine')
-        if mine and self.request.user.is_authenticated:
-            queryset = queryset.filter(author=self.request.user)
         
         return queryset
 
@@ -78,10 +55,9 @@ class PostListCreateView(generics.ListCreateAPIView):
                     "method": "fallback-error"
                 }
             
-            # 2. Crear la entidad Post con el autor autenticado
+            # 2. Crear la entidad Post
             post = Post.objects.create(
                 content=content,
-                author=request.user if request.user.is_authenticated else None,
                 primary_category=analysis['primary_category'],
                 primary_confidence=analysis['primary_confidence']
             )

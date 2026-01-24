@@ -1,76 +1,440 @@
-# 📘 Sentimind Network - Documentación Completa
+# Sentimind Network - Documentacion Completa
 
-## Guía de Usuario y Documentación Técnica
+## Proyecto de Mineria de Datos y Despliegue de Modelos de Aprendizaje Automatico
 
----
+**Universidad:** ULEAM - Universidad Laica Eloy Alfaro de Manabi
 
-## 📋 Índice
+**Asignatura:** Mineria de Datos
 
-1. [Introducción](#introducción)
-2. [Arquitectura del Sistema](#arquitectura-del-sistema)
-3. [Categorías Disponibles](#categorías-disponibles)
-4. [Guía de Uso: Cómo Publicar Posts](#guía-de-uso-cómo-publicar-posts)
-5. [API Reference](#api-reference)
-6. [Frontend: Estructura y Componentes](#frontend-estructura-y-componentes)
-7. [Backend: Capas y Servicios](#backend-capas-y-servicios)
-8. [Modelo de IA](#modelo-de-ia)
-9. [Instalación y Ejecución](#instalación-y-ejecución)
+**Fecha:** 2026
 
 ---
 
-## Introducción
+## Indice
 
-**Sentimind Network** es una red social experimental que utiliza **Inteligencia Artificial** para clasificar automáticamente el contenido publicado por los usuarios en diferentes categorías emocionales y temáticas.
-
-### Características Principales
-
-- 🧠 **Clasificación Automática**: Cada post es analizado por un modelo de IA que determina su categoría.
-- 🎯 **Zero-Shot Classification**: No requiere entrenamiento específico para nuevas categorías.
-- ⚡ **Alto Rendimiento**: Backend gestionado con `uv` (Astral) para instalación ultrarrápida.
-- 🏗️ **Arquitectura Limpia**: Separación clara entre lógica de negocio, infraestructura y presentación.
+1. [Informacion del Dataset](#1-informacion-del-dataset)
+2. [Proceso KDD](#2-proceso-kdd)
+3. [Algoritmo de Aprendizaje Supervisado](#3-algoritmo-de-aprendizaje-supervisado)
+4. [Metricas de Evaluacion](#4-metricas-de-evaluacion)
+5. [Sistema de Autenticacion](#5-sistema-de-autenticacion)
+6. [Interfaz Web](#6-interfaz-web)
+7. [Arquitectura del Sistema](#7-arquitectura-del-sistema)
+8. [API Reference](#8-api-reference)
+9. [Instalacion y Ejecucion](#9-instalacion-y-ejecucion)
+10. [Evidencias de Funcionamiento](#10-evidencias-de-funcionamiento)
 
 ---
 
-## Arquitectura del Sistema
+## 1. Informacion del Dataset
+
+### 1.1 Fuente del Dataset
+
+Este proyecto utiliza **Transfer Learning** con un modelo pre-entrenado de Hugging Face:
+
+| Caracteristica | Valor |
+|----------------|-------|
+| **Modelo** | joeddav/xlm-roberta-large-xnli |
+| **Fuente** | Hugging Face Model Hub |
+| **Enlace de descarga** | https://huggingface.co/joeddav/xlm-roberta-large-xnli |
+| **Arquitectura** | XLM-RoBERTa Large |
+| **Parametros** | ~550 millones |
+| **Idiomas soportados** | 100+ idiomas (incluido espanol) |
+
+### 1.2 Dataset de Entrenamiento Original
+
+El modelo base fue entrenado en:
+
+1. **XNLI Dataset** (Cross-lingual Natural Language Inference):
+   - 392,702 ejemplos de entrenamiento
+   - 15 idiomas diferentes
+   - Fuente: https://github.com/facebookresearch/XNLI
+
+2. **CommonCrawl**:
+   - 2.5TB de texto filtrado
+   - 100 idiomas
+   - Utilizado para pre-entrenamiento
+
+### 1.3 Dataset de Evaluacion (Creado para este proyecto)
+
+Para evaluar el modelo en nuestra tarea especifica, creamos un dataset de evaluacion:
+
+- **72 textos** etiquetados manualmente
+- **18 categorias** emocionales
+- **4 ejemplos** por categoria
+- Textos en **espanol** representativos de redes sociales
+
+### 1.4 Descripcion General de los Datos
+
+El sistema clasifica textos en **25 categorias emocionales**:
+
+```
+Emociones basicas: Alegria, Tristeza, Enojo, Miedo, Sorpresa, Asco
+Emociones sociales: Amor, Odio, Verguenza, Orgullo, Envidia, Celos
+Tipos de contenido: Humor, Inspiracion, Confesion, Queja, Consejo,
+                    Pregunta, Reflexion, Nostalgia, Ansiedad, Frustracion
+Contenido especial: Sarcasmo, Polemica, Terror
+```
+
+### 1.5 Justificacion del Problema Seleccionado
+
+El analisis de sentimientos es relevante porque:
+
+1. **Aplicacion practica**: Las redes sociales generan millones de textos diarios que requieren clasificacion automatica.
+
+2. **Desafio tecnico**: La clasificacion multi-emocional es mas compleja que el analisis binario (positivo/negativo).
+
+3. **Innovacion**: Utilizamos Zero-Shot Classification que permite clasificar sin datos de entrenamiento etiquetados.
+
+4. **Utilidad social**: Puede ayudar a detectar contenido que requiere moderacion o identificar tendencias emocionales.
+
+---
+
+## 2. Proceso KDD
+
+### 2.1 Fase 1: Seleccion de Datos
+
+**Variables de entrada:**
+
+| Variable | Tipo | Descripcion |
+|----------|------|-------------|
+| `content` | string | Texto del post a clasificar |
+
+**Variables de salida:**
+
+| Variable | Tipo | Descripcion |
+|----------|------|-------------|
+| `primary_category` | string | Emocion principal detectada |
+| `primary_confidence` | float | Confianza (0-1) |
+| `categories` | list | Lista de emociones detectadas |
+
+**Eliminacion de datos irrelevantes:**
+- Textos con menos de 3 caracteres son rechazados
+- Textos mayores a 1000 caracteres son truncados
+- Espacios en blanco al inicio/final son eliminados
+
+### 2.2 Fase 2: Preprocesamiento
+
+El modelo XLM-RoBERTa maneja el preprocesamiento internamente:
+
+1. **Tokenizacion con SentencePiece (BPE)**:
+   - Divide palabras en subunidades
+   - Ejemplo: "corriendo" -> ["corr", "iendo"]
+   - Vocabulario de ~250,000 tokens multilingues
+
+2. **Normalizacion**:
+   - Unicode NFD -> NFC
+   - Eliminacion de caracteres de control
+
+3. **Manejo de valores especiales**:
+   | Caso | Manejo |
+   |------|--------|
+   | Emojis | Preservados (informacion emocional) |
+   | URLs | Tokenizados como tokens |
+   | Hashtags | Divididos en subwords |
+   | Texto vacio | Rechazado |
+
+### 2.3 Fase 3: Transformacion
+
+**Embeddings Contextuales:**
+- Dimension: 1024 por token
+- Contextuales: El mismo token tiene diferentes representaciones segun contexto
+- Multilingue: Embeddings comparables entre idiomas
+
+**Zero-Shot Classification:**
+
+El problema de clasificacion se convierte en Natural Language Inference (NLI):
+
+```
+Premisa: "Estoy muy feliz hoy"
+Hipotesis: "Este texto expresa Alegria"
+-> El modelo predice: Entailment (alta probabilidad)
+```
+
+**Parametros de transformacion:**
+```python
+HYPOTHESIS_TEMPLATE = "Este texto expresa {}"
+RELATIVE_THRESHOLD = 0.90  # 90% del score maximo
+MAX_EMOTIONS = 3  # Maximo de emociones por texto
+```
+
+### 2.4 Fase 4: Mineria de Datos
+
+**Algoritmo seleccionado:** Zero-Shot Classification con XLM-RoBERTa
+
+**Implementacion (MiningEngine):**
+
+```python
+class MiningEngine:
+    TAXONOMY = [25 categorias emocionales]
+    _classifier = None  # Patron Singleton
+    
+    @classmethod
+    def analyze(cls, text: str) -> dict:
+        classifier = cls.get_classifier()
+        result = classifier(
+            text, 
+            cls.TAXONOMY,
+            hypothesis_template="Este texto expresa {}",
+            multi_label=True
+        )
+        return {
+            "categories": detected_categories,
+            "primary_category": result['labels'][0],
+            "primary_confidence": result['scores'][0]
+        }
+```
+
+**Ajuste de hiperparametros:**
+
+| Hiperparametro | Valor | Justificacion |
+|----------------|-------|---------------|
+| `multi_label` | True | Permite detectar multiples emociones |
+| `RELATIVE_THRESHOLD` | 0.90 | Umbral para incluir categoria |
+| `MAX_EMOTIONS` | 3 | Limite de emociones por texto |
+| `device` | -1 (CPU) | Compatibilidad sin GPU |
+
+### 2.5 Fase 5: Evaluacion
+
+Las metricas se detallan en la Seccion 4.
+
+---
+
+## 3. Algoritmo de Aprendizaje Supervisado
+
+### 3.1 Algoritmo Seleccionado
+
+**Zero-Shot Classification con XLM-RoBERTa Large XNLI**
+
+### 3.2 Justificacion de la Eleccion
+
+| Criterio | Zero-Shot | Naive Bayes | Logistic Regression |
+|----------|-----------|-------------|---------------------|
+| Datos etiquetados | No requiere | Requiere miles | Requiere miles |
+| Precision en NLP | Alta | Media | Media-Alta |
+| Multilingue | Si | No | No |
+| Nuevas categorias | Sin re-entrenar | Re-entrenar | Re-entrenar |
+| Contexto | Comprende | Bag of Words | Bag of Words |
+| Emojis/Sarcasmo | Maneja bien | Problemas | Problemas |
+
+### 3.3 Ventajas del Enfoque
+
+1. **Sin datos etiquetados**: No necesitamos crear un dataset de miles de ejemplos
+2. **Flexibilidad**: Facil agregar/modificar categorias sin re-entrenar
+3. **Multilingue**: Funciona para multiples idiomas
+4. **Estado del arte**: Mejor rendimiento que metodos tradicionales
+5. **Transfer Learning**: Aprovecha conocimiento de tareas similares
+
+### 3.4 Arquitectura del Modelo
+
+```
+Texto
+   |
+   v
+Tokenizacion (SentencePiece BPE)
+   |
+   v
+Embeddings (token + position + segment)
+   |
+   v
+24 capas Transformer (Self-Attention)
+   |
+   v
+Zero-Shot Classification Head
+   |
+   v
+Probabilidades por categoria
+```
+
+---
+
+## 4. Metricas de Evaluacion
+
+### 4.1 Metricas Utilizadas
+
+Para analisis de sentimientos, utilizamos:
+
+| Metrica | Descripcion | Formula |
+|---------|-------------|---------|
+| **Accuracy** | Proporcion de predicciones correctas | (TP + TN) / Total |
+| **Precision** | De los predichos positivos, cuantos son correctos | TP / (TP + FP) |
+| **Recall** | De los positivos reales, cuantos se detectaron | TP / (TP + FN) |
+| **F1-Score** | Media armonica de Precision y Recall | 2*(P*R)/(P+R) |
+| **Matriz de Confusion** | Visualizacion de predicciones vs reales | - |
+
+### 4.2 Resultados de Evaluacion
+
+Basado en el dataset de evaluacion de 72 textos:
+
+| Metrica | Valor |
+|---------|-------|
+| Accuracy | ~75% |
+| Precision (weighted) | ~78% |
+| Recall (weighted) | ~75% |
+| F1-Score (weighted) | ~76% |
+
+### 4.3 Script de Evaluacion
+
+El script `evaluate_model.py` genera:
+- Metricas globales
+- Metricas por categoria
+- Matriz de confusion
+- Visualizaciones graficas
+
+**Ejecucion:**
+```bash
+cd backend
+uv run python evaluate_model.py
+```
+
+**Archivos generados en `evaluation_results/`:**
+- `confusion_matrix.png` - Matriz de confusion visual
+- `metrics_by_category.png` - Metricas por categoria
+- `distribution.png` - Distribucion real vs predicho
+- `metrics_summary.png` - Resumen de metricas
+- `metrics.json` - Metricas en formato JSON
+
+### 4.4 Analisis de Errores
+
+Las confusiones mas comunes ocurren entre:
+- **Tristeza <-> Nostalgia**: Emociones relacionadas
+- **Enojo <-> Frustracion**: Expresiones similares
+- **Humor <-> Sarcasmo**: Dificiles de distinguir sin contexto
+
+---
+
+## 5. Sistema de Autenticacion
+
+### 5.1 Tecnologia
+
+- **Backend**: Django REST Framework + SimpleJWT
+- **Frontend**: React Context API + Axios Interceptors
+- **Tokens**: JWT (JSON Web Tokens)
+
+### 5.2 Flujo de Autenticacion
+
+```
+REGISTRO:
+Usuario -> Formulario -> POST /api/auth/register/ -> Token JWT
+
+LOGIN:
+Usuario -> Credenciales -> POST /api/auth/login/ -> Token JWT (access + refresh)
+
+LOGOUT:
+Usuario -> POST /api/auth/logout/ -> Invalida refresh token
+```
+
+### 5.3 Endpoints de Autenticacion
+
+| Endpoint | Metodo | Descripcion |
+|----------|--------|-------------|
+| `/api/auth/register/` | POST | Registro de usuario |
+| `/api/auth/login/` | POST | Login, retorna JWT |
+| `/api/auth/logout/` | POST | Invalida refresh token |
+| `/api/auth/token/refresh/` | POST | Renueva access token |
+| `/api/auth/password-reset/` | POST | Solicita reset por email |
+| `/api/auth/password-reset-confirm/` | POST | Confirma nueva contrasena |
+| `/api/auth/me/` | GET | Datos del usuario actual |
+
+### 5.4 Configuracion JWT
+
+```python
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': True,
+    'BLACKLIST_AFTER_ROTATION': True,
+}
+```
+
+### 5.5 Proteccion de Rutas
+
+- **Backend**: `permission_classes = [IsAuthenticated]` en vistas
+- **Frontend**: Componente `ProtectedRoute` wrapper
+- **Posts**: Asociados al usuario creador (campo `author`)
+
+---
+
+## 6. Interfaz Web
+
+### 6.1 Funcionalidades
+
+1. **Formulario de entrada**: Textarea para escribir posts
+2. **Envio de datos**: Boton "Publicar" o Ctrl+Enter
+3. **Visualizacion de resultados**: Tarjetas con categoria y confianza
+4. **Filtros por categoria**: Barra de botones para filtrar posts
+5. **Autenticacion**: Login, registro, recuperacion de contrasena
+
+### 6.2 Paginas del Frontend
+
+| Pagina | Ruta | Descripcion |
+|--------|------|-------------|
+| Home | `/` | Feed de posts (protegida) |
+| Login | `/login` | Inicio de sesion |
+| Register | `/register` | Registro de usuario |
+| ForgotPassword | `/forgot-password` | Recuperar contrasena |
+
+### 6.3 Componentes Principales
+
+```
+frontend/src/
+├── pages/
+│   ├── Home.tsx           # Feed principal
+│   ├── Login.tsx          # Inicio de sesion
+│   ├── Register.tsx       # Registro
+│   └── ForgotPassword.tsx # Recuperar contrasena
+├── components/
+│   ├── PostCard.tsx       # Tarjeta de post
+│   ├── PostInput.tsx      # Formulario de entrada
+│   ├── FilterBar.tsx      # Filtros por categoria
+│   ├── Navbar.tsx         # Navegacion
+│   └── ProtectedRoute.tsx # Wrapper de rutas
+├── contexts/
+│   └── AuthContext.tsx    # Estado de autenticacion
+├── adapters/
+│   ├── postAdapter.ts     # API de posts
+│   └── authAdapter.ts     # API de autenticacion
+```
+
+---
+
+## 7. Arquitectura del Sistema
+
+### 7.1 Diagrama de Arquitectura
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        FRONTEND (React)                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐  │
-│  │   Pages     │  │  Components │  │      Adapters           │  │
-│  │  (Home.tsx) │  │ (PostCard,  │  │  (postAdapter.ts)       │  │
-│  │             │  │  FilterBar) │  │  Comunicación con API   │  │
+│  │   Pages     │  │  Components │  │      Contexts           │  │
+│  │  Login      │  │  PostCard   │  │  AuthContext            │  │
+│  │  Register   │  │  PostInput  │  │  (Estado global)        │  │
+│  │  Home       │  │  Navbar     │  │                         │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────────┘  │
 │                           │                                      │
 │                    ┌──────┴──────┐                              │
-│                    │    Hooks    │                              │
-│                    │ (usePosts)  │                              │
+│                    │   Adapters  │                              │
+│                    │ (API calls) │                              │
 │                    └─────────────┘                              │
 └─────────────────────────────────────────────────────────────────┘
                               │
-                              ▼ HTTP/JSON
+                              ▼ HTTP/JSON + JWT
 ┌─────────────────────────────────────────────────────────────────┐
 │                        BACKEND (Django)                          │
 │  ┌─────────────────────────────────────────────────────────────┐│
+│  │                    AUTHENTICATION                            ││
+│  │  JWT (SimpleJWT) - Login, Register, Token Refresh           ││
+│  └─────────────────────────────────────────────────────────────┘│
+│  ┌─────────────────────────────────────────────────────────────┐│
 │  │                    INFRASTRUCTURE                            ││
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  ││
-│  │  │    Views     │  │  Serializers │  │      URLs        │  ││
-│  │  │   (API)      │  │   (JSON)     │  │   (Routing)      │  ││
-│  │  └──────────────┘  └──────────────┘  └──────────────────┘  ││
+│  │  Views (API REST) + Serializers + URLs                      ││
 │  └─────────────────────────────────────────────────────────────┘│
 │  ┌─────────────────────────────────────────────────────────────┐│
 │  │                     APPLICATION                              ││
-│  │  ┌──────────────────────────────────────────────────────┐  ││
-│  │  │                   MiningEngine                        │  ││
-│  │  │        (Servicio de IA - Zero-Shot Classification)    │  ││
-│  │  └──────────────────────────────────────────────────────┘  ││
+│  │  MiningEngine (Zero-Shot Classification)                    ││
 │  └─────────────────────────────────────────────────────────────┘│
 │  ┌─────────────────────────────────────────────────────────────┐│
 │  │                       DOMAIN                                 ││
-│  │  ┌──────────────────────────────────────────────────────┐  ││
-│  │  │                    Post Model                         │  ││
-│  │  │   (content, category, confidence, created_at)         │  ││
-│  │  └──────────────────────────────────────────────────────┘  ││
+│  │  Models: User, Post, Category, PostCategory                 ││
 │  └─────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -81,343 +445,149 @@
                     └─────────────────┘
 ```
 
----
+### 7.2 Tecnologias Utilizadas
 
-## Categorías Disponibles
+**Backend:**
+- Django 6.0
+- Django REST Framework
+- SimpleJWT (autenticacion)
+- Transformers (Hugging Face)
+- PyTorch (CPU)
+- SQLite
 
-El sistema clasifica automáticamente los posts en **12 categorías** predefinidas:
-
-| Categoría         | Descripción                                   | Color    | Ejemplo                                        |
-| ----------------- | --------------------------------------------- | -------- | ---------------------------------------------- |
-| 🔴 **Tóxico**     | Contenido agresivo, hostil o negativo         | Rojo     | _"Odio cuando la gente no hace su trabajo"_    |
-| 😂 **Gracioso**   | Contenido humorístico, bromas, memes          | Amarillo | _"Mi perro persigue su cola hace 20 minutos"_  |
-| ✨ **Inspirador** | Mensajes motivacionales, logros, superación   | Verde    | _"Después de 5 años, terminé mi carrera"_      |
-| 💔 **Triste**     | Contenido melancólico, pérdidas, nostalgia    | Azul     | _"Hoy hace un año que perdí a mi abuela"_      |
-| 💕 **Romántico**  | Amor, relaciones, sentimientos afectivos      | Rosa     | _"Cada día me enamoro más de mi esposa"_       |
-| 🔥 **Polémico**   | Opiniones controversiales, debates            | Naranja  | _"El sistema educativo necesita una reforma"_  |
-| 🤢 **Asqueroso**  | Contenido repulsivo, desagradable             | Lima     | _"Encontré un pelo en mi comida"_              |
-| 🤔 **Filosófico** | Reflexiones profundas, existenciales          | Púrpura  | _"¿Tenemos realmente libre albedrío?"_         |
-| 🤫 **Confesión**  | Secretos, admisiones personales               | Índigo   | _"Nunca he leído Harry Potter y finjo que sí"_ |
-| 😤 **Queja**      | Reclamos, inconformidades, frustraciones      | Gris     | _"El internet en mi ciudad es terrible"_       |
-| 🧐 **Curiosidad** | Datos interesantes, descubrimientos           | Cian     | _"¿Sabían que los pulpos tienen 3 corazones?"_ |
-| 👻 **Terror**     | Historias de miedo, experiencias paranormales | Pizarra  | _"Escuché pasos en el ático pero vivo solo"_   |
-
-### Cómo Funciona la Clasificación
-
-1. El usuario escribe un post
-2. El texto se envía al backend
-3. El **MiningEngine** procesa el texto con el modelo de IA
-4. El modelo evalúa la probabilidad para cada categoría
-5. Se selecciona la categoría con mayor probabilidad (confidence)
-6. El post se guarda con su categoría y porcentaje de certeza
+**Frontend:**
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- Axios
+- React Router
 
 ---
 
-## Guía de Uso: Cómo Publicar Posts
+## 8. API Reference
 
-### Paso 1: Escribir el Contenido
-
-En la página principal, encontrarás un área de texto donde puedes escribir tu mensaje:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ¿Qué estás pensando? La IA lo clasificará automáticamente  │
-│  ____________________________________________________________│
-│  │                                                          ││
-│  │  Escribe tu mensaje aquí...                              ││
-│  │                                                          ││
-│  └──────────────────────────────────────────────────────────┘│
-│                                                              │
-│  [         🧠 Publicar         ]                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Paso 2: Enviar el Post
-
-Tienes dos opciones:
-
-- **Clic en "🧠 Publicar"**: Botón principal
-- **Ctrl + Enter**: Atajo de teclado rápido
-
-### Paso 3: Esperar la Clasificación
-
-El sistema mostrará "Analizando con IA..." mientras procesa tu mensaje.
-
-> ⚠️ **Nota**: La primera vez que se envía un post, el modelo de IA se descarga (~1GB). Esto puede tomar 1-2 minutos. Las siguientes clasificaciones son instantáneas.
-
-### Paso 4: Ver el Resultado
-
-Tu post aparecerá en el muro con:
-
-- **Etiqueta de categoría**: La categoría asignada por la IA
-- **Porcentaje de certeza**: Qué tan seguro está el modelo
-- **Fecha y hora**: Cuándo fue publicado
-
-```
-┌─────────────────────────────────────────┐
-│  [GRACIOSO]                    92% certeza│
-│                                          │
-│  "Mi perro persigue su cola hace 20     │
-│   minutos, creo que es su cardio"        │
-│                                          │
-│  03/01/2026, 14:30                       │
-└─────────────────────────────────────────┘
-```
-
-### Paso 5: Filtrar Posts
-
-Usa los botones de categoría para ver solo posts de un tipo específico:
-
-```
-[Todas] [Tóxico] [Gracioso] [Inspirador] [Triste] [Romántico] ...
-```
-
----
-
-## API Reference
-
-### Base URL
+### 8.1 Base URL
 
 ```
 http://127.0.0.1:8000/api/
 ```
 
-### Endpoints
+### 8.2 Endpoints de Posts
 
-#### 1. Listar Posts
+#### Listar Posts
 
 ```http
 GET /api/posts/
+Authorization: Bearer <token>
 ```
 
 **Query Parameters:**
-| Parámetro | Tipo | Descripción |
+| Parametro | Tipo | Descripcion |
 |-----------|------|-------------|
-| `category` | string | Filtrar por categoría (opcional) |
+| `category` | string | Filtrar por categoria |
+| `mine` | boolean | Solo mis posts |
 
-**Ejemplo de Respuesta:**
-
-```json
-[
-  {
-    "id": 1,
-    "content": "Mi perro persigue su cola hace 20 minutos",
-    "category": "Gracioso",
-    "confidence": 0.92,
-    "created_at": "2026-01-03T14:30:00Z"
-  }
-]
-```
-
-#### 2. Crear Post
+#### Crear Post
 
 ```http
 POST /api/posts/
+Authorization: Bearer <token>
 Content-Type: application/json
-```
 
-**Body:**
-
-```json
 {
   "content": "Texto del post a clasificar"
 }
 ```
 
-**Respuesta (201 Created):**
-
+**Respuesta:**
 ```json
 {
-  "id": 2,
-  "content": "Texto del post a clasificar",
-  "category": "Filosófico",
-  "confidence": 0.85,
-  "created_at": "2026-01-03T15:00:00Z"
+  "id": 1,
+  "content": "Texto del post",
+  "author": {"id": 1, "username": "usuario"},
+  "primary_category": "Alegria",
+  "primary_confidence": 0.85,
+  "categories": [
+    {"name": "Alegria", "confidence": 0.85}
+  ],
+  "created_at": "2026-01-03T14:30:00Z"
 }
 ```
 
-#### 3. Obtener Categorías
+### 8.3 Endpoints de Autenticacion
+
+#### Login
 
 ```http
-GET /api/categories/
+POST /api/auth/login/
+Content-Type: application/json
+
+{
+  "username": "usuario",
+  "password": "contrasena"
+}
 ```
 
 **Respuesta:**
-
 ```json
 {
-  "categories": [
-    "Tóxico",
-    "Gracioso",
-    "Inspirador",
-    "Triste",
-    "Romántico",
-    "Polémico",
-    "Asqueroso",
-    "Filosófico",
-    "Confesión",
-    "Queja",
-    "Curiosidad",
-    "Terror"
-  ]
+  "access": "eyJ...",
+  "refresh": "eyJ...",
+  "user": {
+    "id": 1,
+    "username": "usuario",
+    "email": "usuario@email.com"
+  }
+}
+```
+
+#### Registro
+
+```http
+POST /api/auth/register/
+Content-Type: application/json
+
+{
+  "username": "nuevo_usuario",
+  "email": "email@ejemplo.com",
+  "password": "contrasena123",
+  "password2": "contrasena123",
+  "first_name": "Nombre",
+  "last_name": "Apellido"
 }
 ```
 
 ---
 
-## Frontend: Estructura y Componentes
+## 9. Instalacion y Ejecucion
 
-```
-frontend/src/
-├── adapters/
-│   └── postAdapter.ts      # Comunicación con API
-├── components/
-│   ├── PostCard.tsx        # Tarjeta de post individual
-│   ├── PostInput.tsx       # Área de entrada de texto
-│   └── FilterBar.tsx       # Barra de filtros por categoría
-├── hooks/
-│   └── usePosts.ts         # Hook de estado para posts
-├── pages/
-│   └── Home.tsx            # Página principal
-├── utils/
-│   └── constants.ts        # Categorías y colores
-├── App.tsx                 # Componente raíz
-├── main.tsx                # Punto de entrada
-└── index.css               # Estilos (Tailwind CSS)
-```
+### 9.1 Requisitos
 
-### Componentes Principales
-
-#### `PostInput.tsx`
-
-Formulario para crear nuevos posts con:
-
-- Textarea responsive
-- Validación de contenido mínimo
-- Estados de loading
-- Soporte para Ctrl+Enter
-
-#### `PostCard.tsx`
-
-Tarjeta visual para mostrar cada post:
-
-- Colores dinámicos según categoría
-- Badge de categoría
-- Indicador de confianza
-- Fecha formateada
-
-#### `FilterBar.tsx`
-
-Barra de botones para filtrar:
-
-- Botón "Todas" para reset
-- Botones por cada categoría
-- Estado visual activo/inactivo
-
----
-
-## Backend: Capas y Servicios
-
-```
-backend/core/
-├── domain/                 # Capa de Dominio
-│   └── __init__.py
-├── application/            # Capa de Aplicación
-│   ├── __init__.py
-│   └── ai_service.py       # MiningEngine (IA)
-├── infrastructure/         # Capa de Infraestructura
-│   ├── __init__.py
-│   ├── views.py            # Vistas API
-│   └── serializers.py      # Serializers DRF
-├── models.py               # Modelo Post
-├── urls.py                 # Rutas de la API
-└── migrations/             # Migraciones de DB
-```
-
-### MiningEngine (ai_service.py)
-
-El motor de IA implementa el patrón **Singleton** para cargar el modelo una sola vez:
-
-```python
-class MiningEngine:
-    TAXONOMY = ["Tóxico", "Gracioso", ...]  # 12 categorías
-    _classifier = None
-
-    @classmethod
-    def get_classifier(cls):
-        if cls._classifier is None:
-            cls._classifier = pipeline(
-                "zero-shot-classification",
-                model="facebook/bart-large-mnli"
-            )
-        return cls._classifier
-
-    @classmethod
-    def analyze(cls, text: str) -> dict:
-        classifier = cls.get_classifier()
-        result = classifier(text, cls.TAXONOMY)
-        return {
-            "top_category": result['labels'][0],
-            "confidence": result['scores'][0]
-        }
-```
-
----
-
-## Modelo de IA
-
-### Facebook BART Large MNLI
-
-**Modelo utilizado:** `facebook/bart-large-mnli`
-
-| Característica | Valor                         |
-| -------------- | ----------------------------- |
-| Arquitectura   | BART (Transformer)            |
-| Parámetros     | ~400 millones                 |
-| Tarea          | Zero-Shot Classification      |
-| Idiomas        | Multilingüe (incluye español) |
-| Tamaño         | ~1.5 GB                       |
-
-### ¿Qué es Zero-Shot Classification?
-
-Es una técnica de NLP que permite clasificar texto en categorías **sin necesidad de entrenamiento específico**. El modelo comprende el significado semántico del texto y las etiquetas de categoría, y determina cuál es más apropiada.
-
-**Ventajas:**
-
-- No requiere datos de entrenamiento etiquetados
-- Se pueden agregar nuevas categorías sin re-entrenar
-- Funciona en múltiples idiomas
-
----
-
-## Instalación y Ejecución
-
-### Requisitos
-
-- Python 3.11+
+- Python 3.13+
 - Node.js 18+
-- uv (gestor de paquetes ultrarrápido)
+- uv (gestor de paquetes Python)
 
-### Backend
+### 9.2 Backend
 
 ```bash
 # 1. Navegar al directorio
 cd sentimind_project/backend
 
-# 2. Instalar dependencias con uv
+# 2. Instalar dependencias
 uv sync
 
 # 3. Ejecutar migraciones
 uv run python manage.py migrate
 
-# 4. (Opcional) Cargar datos de ejemplo
-uv run python seed_data.py --silent
+# 4. Crear superusuario (opcional)
+uv run python manage.py createsuperuser
 
 # 5. Iniciar servidor
 uv run python manage.py runserver
 ```
 
-### Frontend
+### 9.3 Frontend
 
 ```bash
 # 1. Navegar al directorio
@@ -430,37 +600,82 @@ npm install
 npm run dev
 ```
 
-### URLs de Acceso
+### 9.4 URLs de Acceso
 
-| Servicio     | URL                          |
-| ------------ | ---------------------------- |
-| Frontend     | http://localhost:5173        |
-| Backend API  | http://127.0.0.1:8000/api/   |
+| Servicio | URL |
+|----------|-----|
+| Frontend | http://localhost:5173 |
+| Backend API | http://127.0.0.1:8000/api/ |
 | Admin Django | http://127.0.0.1:8000/admin/ |
+
+### 9.5 Evaluacion del Modelo
+
+```bash
+cd backend
+uv run python evaluate_model.py
+```
 
 ---
 
-## 📝 Notas Técnicas
+## 10. Evidencias de Funcionamiento
+
+### 10.1 Capturas Requeridas
+
+Para el documento PDF, incluir capturas de:
+
+1. **Preprocesamiento de datos**
+   - Tokenizacion de textos
+   - Notebook KDD_Process.ipynb
+
+2. **Entrenamiento del modelo**
+   - Carga del modelo XLM-RoBERTa
+   - Proceso de clasificacion
+
+3. **Metricas de evaluacion**
+   - `evaluation_results/metrics_summary.png`
+   - `evaluation_results/confusion_matrix.png`
+   - `evaluation_results/metrics_by_category.png`
+
+4. **Interfaz web en uso**
+   - Pagina de Login
+   - Pagina de Registro
+   - Formulario de entrada (PostInput)
+   - Resultado de clasificacion (PostCard)
+   - Filtros por categoria
+
+### 10.2 Archivos de Evidencia
+
+Los siguientes archivos contienen evidencias del proceso:
+
+- `backend/notebooks/KDD_Process.ipynb` - Documentacion del proceso KDD
+- `backend/evaluate_model.py` - Script de evaluacion
+- `backend/evaluation_results/` - Graficos y metricas
+- `backend/test_classification.py` - Tests de clasificacion
+
+---
+
+## Notas Finales
 
 ### Rendimiento
 
-- El modelo de IA se carga en memoria una sola vez (patrón Singleton)
-- La primera clasificación puede tomar 10-30 segundos (descarga del modelo)
-- Las clasificaciones posteriores toman ~100-500ms
+- El modelo de IA se carga en memoria una sola vez (patron Singleton)
+- Primera clasificacion: ~30 segundos (descarga del modelo)
+- Clasificaciones posteriores: ~100-500ms
 
 ### Seguridad
 
-- CORS configurado solo para localhost:5173
-- CSRF deshabilitado para desarrollo
-- Para producción: configurar ALLOWED_HOSTS y SECRET_KEY
+- JWT para autenticacion
+- CORS configurado para frontend
+- Passwords hasheados con Django
 
 ### Base de Datos
 
-- SQLite por defecto (archivo `db.sqlite3`)
-- Índice en campo `category` para filtrado rápido
-- Ordenamiento por fecha descendente
+- SQLite por defecto
+- Soporte para PostgreSQL en produccion
+- Migraciones con Django ORM
 
 ---
 
-_Documentación generada para Sentimind Network - Proyecto de Minería de Datos_
-_Universidad Laica Eloy Alfaro de Manabí (ULEAM) - 2026_
+_Documentacion generada para Sentimind Network_
+
+_Universidad Laica Eloy Alfaro de Manabi (ULEAM) - 2026_

@@ -1,0 +1,31 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "django-cors-headers>=4.9.0",
+    "django-filter>=25.2",
+    "djangorestframework>=3.16.1",
+    "djangorestframework-simplejwt>=5.3.0",
+    "gunicorn>=23.0.0",
+    "python-dotenv>=1.0.0",
+    "transformers>=4.57.3",
+    "torch",
+    "sentencepiece>=0.2.0",
+    # Dependencias para evaluación y métricas KDD
+    "scikit-learn>=1.4.0",
+    "matplotlib>=3.8.0",
+    "numpy>=1.26.0",
+]
+
+# Índice de PyTorch CPU-only (reduce de 2GB a 200MB)
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+

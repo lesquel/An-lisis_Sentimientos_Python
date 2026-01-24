@@ -1,29 +1,23 @@
 """
-Serializers para autenticación JWT.
-Incluye: Registro, Login, Perfil de usuario, Reset de contraseña.
+Serializers para autenticacion JWT.
 """
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
-from django.contrib.auth import authenticate
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """
-    Serializer personalizado para incluir datos del usuario en el token.
-    """
+    """Serializer personalizado para incluir datos del usuario en el token."""
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        # Agregar datos personalizados al token
         token['username'] = user.username
         token['email'] = user.email
         return token
 
     def validate(self, attrs):
         data = super().validate(attrs)
-        # Agregar datos del usuario a la respuesta
         data['user'] = {
             'id': self.user.id,
             'username': self.user.username,
@@ -35,20 +29,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    """
-    Serializer para registro de nuevos usuarios.
-    """
-    password = serializers.CharField(
-        write_only=True,
-        required=True,
-        validators=[validate_password],
-        style={'input_type': 'password'}
-    )
-    password2 = serializers.CharField(
-        write_only=True,
-        required=True,
-        style={'input_type': 'password'}
-    )
+    """Serializer para registro de nuevos usuarios."""
+    password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
+    password2 = serializers.CharField(write_only=True, required=True)
     email = serializers.EmailField(required=True)
 
     class Meta:
@@ -57,16 +40,9 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password2']:
-            raise serializers.ValidationError({
-                "password": "Las contraseñas no coinciden."
-            })
-        
-        # Verificar que el email no esté en uso
+            raise serializers.ValidationError({"password": "Las contrasenas no coinciden."})
         if User.objects.filter(email=attrs['email']).exists():
-            raise serializers.ValidationError({
-                "email": "Este email ya está registrado."
-            })
-        
+            raise serializers.ValidationError({"email": "Este email ya esta registrado."})
         return attrs
 
     def create(self, validated_data):
@@ -82,9 +58,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    """
-    Serializer para datos del usuario actual.
-    """
+    """Serializer para datos del usuario actual."""
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 'date_joined')
@@ -92,50 +66,28 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class ChangePasswordSerializer(serializers.Serializer):
-    """
-    Serializer para cambio de contraseña.
-    """
+    """Serializer para cambio de contrasena."""
     old_password = serializers.CharField(required=True, write_only=True)
     new_password = serializers.CharField(required=True, write_only=True, validators=[validate_password])
     new_password2 = serializers.CharField(required=True, write_only=True)
 
     def validate(self, attrs):
         if attrs['new_password'] != attrs['new_password2']:
-            raise serializers.ValidationError({
-                "new_password": "Las nuevas contraseñas no coinciden."
-            })
+            raise serializers.ValidationError({"new_password": "Las nuevas contrasenas no coinciden."})
         return attrs
 
     def validate_old_password(self, value):
         user = self.context['request'].user
         if not user.check_password(value):
-            raise serializers.ValidationError("La contraseña actual es incorrecta.")
+            raise serializers.ValidationError("La contrasena actual es incorrecta.")
         return value
 
 
 class PasswordResetRequestSerializer(serializers.Serializer):
-    """
-    Serializer para solicitar reset de contraseña.
-    """
+    """Serializer para solicitar reset de contrasena."""
     email = serializers.EmailField(required=True)
 
     def validate_email(self, value):
         if not User.objects.filter(email=value).exists():
             raise serializers.ValidationError("No existe una cuenta con este email.")
         return value
-
-
-class PasswordResetConfirmSerializer(serializers.Serializer):
-    """
-    Serializer para confirmar reset de contraseña.
-    """
-    token = serializers.CharField(required=True)
-    new_password = serializers.CharField(required=True, write_only=True, validators=[validate_password])
-    new_password2 = serializers.CharField(required=True, write_only=True)
-
-    def validate(self, attrs):
-        if attrs['new_password'] != attrs['new_password2']:
-            raise serializers.ValidationError({
-                "new_password": "Las contraseñas no coinciden."
-            })
-        return attrs

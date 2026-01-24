@@ -18,26 +18,35 @@ class PostCategorySerializer(serializers.ModelSerializer):
         fields = ['name', 'confidence']
 
 
+class AuthorSerializer(serializers.Serializer):
+    """Serializer para informacion del autor."""
+    id = serializers.IntegerField(read_only=True)
+    username = serializers.CharField(read_only=True)
+
+
 class PostSerializer(serializers.ModelSerializer):
     """
     Serializer para convertir Post a JSON y viceversa.
-    Incluye las múltiples categorías detectadas.
+    Incluye las multiples categorias detectadas.
     """
     categories = PostCategorySerializer(source='post_categories', many=True, read_only=True)
     # Mantener compatibilidad: category = primary_category
     category = serializers.CharField(source='primary_category', read_only=True)
     confidence = serializers.FloatField(source='primary_confidence', read_only=True)
+    # Informacion del autor
+    author = AuthorSerializer(read_only=True)
     
     class Meta:
         model = Post
         fields = [
             'id', 'content', 
+            'author',  # Nuevo: informacion del autor
             'category', 'confidence',  # Compatibilidad con frontend existente
             'primary_category', 'primary_confidence',
-            'categories',  # Nueva: lista de todas las categorías
+            'categories',  # Nueva: lista de todas las categorias
             'created_at'
         ]
-        read_only_fields = ['id', 'category', 'confidence', 'primary_category', 
+        read_only_fields = ['id', 'author', 'category', 'confidence', 'primary_category', 
                            'primary_confidence', 'categories', 'created_at']
 
 

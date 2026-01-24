@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 
 class Category(models.Model):
@@ -17,22 +18,32 @@ class Category(models.Model):
 
 class Post(models.Model):
     """
-    Entidad principal. Representa una publicación en el muro.
-    Ahora soporta múltiples emociones/categorías por post.
+    Entidad principal. Representa una publicacion en el muro.
+    Soporta multiples emociones/categorias por post.
     """
-    content = models.TextField(help_text="El mensaje anónimo")
+    content = models.TextField(help_text="El mensaje del usuario")
     
-    # Relación muchos-a-muchos con categorías (a través de PostCategory)
+    # Autor del post (opcional para compatibilidad con posts anonimos)
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='posts',
+        null=True,
+        blank=True,
+        help_text="Usuario que creo el post"
+    )
+    
+    # Relacion muchos-a-muchos con categorias (a traves de PostCategory)
     categories = models.ManyToManyField(
         Category, 
         through='PostCategory',
         related_name='posts'
     )
     
-    # Categoría principal (la de mayor confianza) - para filtrado rápido
+    # Categoria principal (la de mayor confianza) - para filtrado rapido
     primary_category = models.CharField(max_length=50, db_index=True)
     
-    # Confianza de la categoría principal
+    # Confianza de la categoria principal
     primary_confidence = models.FloatField()
     
     # Metadatos

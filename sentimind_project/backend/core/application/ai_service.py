@@ -45,32 +45,32 @@ class MiningEngine:
     @classmethod
     def get_classifier(cls):
         if cls._classifier is None:
-            print("🧠 Cargando modelo neuronal multilingüe XLM-RoBERTa... (esto pasa solo una vez)")
+            print("[AI] Cargando modelo neuronal multilingue XLM-RoBERTa... (esto pasa solo una vez)")
             
             # Modelo multilingüe potente
             model_name = "joeddav/xlm-roberta-large-xnli"
             
             try:
                 # Cargar tokenizer con sentencepiece (use_fast=False)
-                print(f"📦 Cargando tokenizer para {model_name}...")
+                print(f"[AI] Cargando tokenizer para {model_name}...")
                 tokenizer = AutoTokenizer.from_pretrained(
                     model_name, 
                     use_fast=False,
                     local_files_only=False
                 )
                 
-                print(f"📦 Cargando modelo {model_name}...")
+                print(f"[AI] Cargando modelo {model_name}...")
                 cls._classifier = pipeline(
                     "zero-shot-classification",
                     model=model_name,
                     tokenizer=tokenizer,
                     device=-1  # CPU
                 )
-                print(f"✅ Modelo {model_name} cargado exitosamente!")
+                print(f"[OK] Modelo {model_name} cargado exitosamente!")
                 
             except Exception as e:
-                print(f"⚠️ Error cargando XLM-RoBERTa: {e}")
-                print("🔄 Intentando con modelo BART (fallback)...")
+                print(f"[WARN] Error cargando XLM-RoBERTa: {e}")
+                print("[AI] Intentando con modelo BART (fallback)...")
                 
                 try:
                     model_name = "facebook/bart-large-mnli"
@@ -79,9 +79,9 @@ class MiningEngine:
                         model=model_name,
                         device=-1
                     )
-                    print(f"✅ Modelo fallback {model_name} cargado!")
+                    print(f"[OK] Modelo fallback {model_name} cargado!")
                 except Exception as e2:
-                    print(f"❌ Error también con fallback: {e2}")
+                    print(f"[ERROR] Error tambien con fallback: {e2}")
                     raise RuntimeError(f"No se pudo cargar ningún modelo: {e}, {e2}")
                 
         return cls._classifier
@@ -99,7 +99,7 @@ class MiningEngine:
                 "all_scores": {...}
             }
         """
-        print(f"🧠 Analizando: '{text[:50]}...'")
+        print(f"[AI] Analizando: '{text[:50]}...'")
         
         classifier = cls.get_classifier()
         
@@ -134,7 +134,7 @@ class MiningEngine:
                 "confidence": round(result['scores'][0], 2)
             }]
         
-        print(f"✅ Resultado: {detected_categories[0]['name']} ({detected_categories[0]['confidence']})")
+        print(f"[OK] Resultado: {detected_categories[0]['name']} ({detected_categories[0]['confidence']})")
         
         return {
             "categories": detected_categories,

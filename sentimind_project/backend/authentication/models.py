@@ -1,5 +1,5 @@
 """
-Modelos de autenticación para SentiMind.
+Modelos de autenticacion para SentiMind.
 Utilizamos el modelo User por defecto de Django.
 """
 from django.contrib.auth.models import User

@@ -36,12 +36,10 @@ export interface RegisterResponse {
   tokens: AuthTokens;
 }
 
-// Crear instancia de axios con interceptores
 const authApi = axios.create({
   baseURL: `${API_URL}/auth`,
 });
 
-// Interceptor para agregar token automáticamente
 authApi.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("access_token");
@@ -53,7 +51,6 @@ authApi.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Interceptor para manejar errores 401 y refresh de tokens
 authApi.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -74,12 +71,11 @@ authApi.interceptors.response.use(
 
           originalRequest.headers.Authorization = `Bearer ${access}`;
           return authApi(originalRequest);
-        } catch (refreshError) {
-          // Si falla el refresh, limpiar tokens
+        } catch {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
           window.location.href = "/login";
-          return Promise.reject(refreshError);
+          return Promise.reject(error);
         }
       }
     }
@@ -89,7 +85,6 @@ authApi.interceptors.response.use(
 );
 
 export const authService = {
-  // Login
   async login(username: string, password: string): Promise<LoginResponse> {
     const response = await authApi.post<LoginResponse>("/login/", {
       username,
@@ -98,13 +93,11 @@ export const authService = {
     return response.data;
   },
 
-  // Registro
   async register(data: RegisterData): Promise<RegisterResponse> {
     const response = await authApi.post<RegisterResponse>("/register/", data);
     return response.data;
   },
 
-  // Logout
   async logout(): Promise<void> {
     const refreshToken = localStorage.getItem("refresh_token");
     try {
@@ -114,74 +107,16 @@ export const authService = {
     }
   },
 
-  // Obtener perfil del usuario actual
   async getProfile(): Promise<User> {
     const response = await authApi.get<User>("/me/");
     return response.data;
   },
 
-  // Actualizar perfil
-  async updateProfile(data: Partial<User>): Promise<User> {
-    const response = await authApi.put<User>("/me/", data);
-    return response.data;
-  },
-
-  // Cambiar contraseña
-  async changePassword(
-    oldPassword: string,
-    newPassword: string,
-    newPassword2: string
-  ): Promise<{ message: string }> {
-    const response = await authApi.put<{ message: string }>("/change-password/", {
-      old_password: oldPassword,
-      new_password: newPassword,
-      new_password2: newPassword2,
-    });
-    return response.data;
-  },
-
-  // Solicitar reset de contraseña
   async requestPasswordReset(email: string): Promise<{ message: string }> {
     const response = await authApi.post<{ message: string }>("/password-reset/", {
       email,
     });
     return response.data;
-  },
-
-  // Confirmar reset de contraseña
-  async confirmPasswordReset(
-    uid: string,
-    token: string,
-    newPassword: string,
-    newPassword2: string
-  ): Promise<{ message: string }> {
-    const response = await authApi.post<{ message: string }>(
-      "/password-reset-confirm/",
-      {
-        uid,
-        token,
-        new_password: newPassword,
-        new_password2: newPassword2,
-      }
-    );
-    return response.data;
-  },
-
-  // Refrescar token
-  async refreshToken(): Promise<string> {
-    const refreshToken = localStorage.getItem("refresh_token");
-    if (!refreshToken) {
-      throw new Error("No refresh token available");
-    }
-
-    const response = await axios.post<{ access: string }>(
-      `${API_URL}/auth/token/refresh/`,
-      {
-        refresh: refreshToken,
-      }
-    );
-
-    return response.data.access;
   },
 };
 

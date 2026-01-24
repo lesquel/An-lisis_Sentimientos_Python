@@ -15,7 +15,6 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<void>;
   register: (data: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,7 +25,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = !!user;
 
-  // Verificar si hay un token guardado al cargar
   useEffect(() => {
     const initAuth = async () => {
       const token = localStorage.getItem("access_token");
@@ -35,7 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const userData = await authService.getProfile();
           setUser(userData);
         } catch {
-          // Token inválido, limpiar
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
         }
@@ -67,16 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  const refreshUser = useCallback(async () => {
-    try {
-      const userData = await authService.getProfile();
-      setUser(userData);
-    } catch {
-      // Si falla, cerrar sesión
-      await logout();
-    }
-  }, [logout]);
-
   return (
     <AuthContext.Provider
       value={{
@@ -86,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         register,
         logout,
-        refreshUser,
       }}
     >
       {children}

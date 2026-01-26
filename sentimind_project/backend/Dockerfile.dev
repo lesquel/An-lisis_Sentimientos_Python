@@ -1,0 +1,44 @@
+# syntax=docker/dockerfile:1
+
+# ============================================
+# Backend Dockerfile para DESARROLLO con UV
+# ============================================
+
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
+
+WORKDIR /app
+
+# Instalar dependencias del sistema necesarias
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configurar UV
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Copiar archivos de proyecto
+COPY pyproject.toml uv.lock* ./
+
+# Instalar dependencias (incluyendo dev)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project
+
+# Copiar código fuente
+COPY . .
+
+# Sincronizar proyecto completo
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen
+
+# Configurar PATH
+ENV PATH="/app/.venv/bin:$PATH"
+ENV DJANGO_SETTINGS_MODULE=sentimind.settings
+
+# Exponer puerto
+EXPOSE 8000
+
+# Comando para desarrollo con auto-reload
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

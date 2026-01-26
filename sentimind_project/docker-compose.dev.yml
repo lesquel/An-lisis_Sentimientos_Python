@@ -1,0 +1,58 @@
+# Docker Compose para desarrollo con hot-reload
+services:
+  # ============================================
+  # Backend Django - Desarrollo
+  # ============================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: sentimind-backend-dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # Hot reload - montar código fuente
+      - ./backend:/app
+      # Excluir entorno virtual del mount
+      - /app/.venv
+    env_file:
+      - ./backend/.env
+    environment:
+      - DJANGO_SETTINGS_MODULE=sentimind.settings
+      - DEBUG=True
+      - ALLOWED_HOSTS=*
+    networks:
+      - sentimind-network
+
+  # ============================================
+  # Frontend React - Desarrollo
+  # ============================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: sentimind-frontend-dev
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      # Hot reload - montar código fuente
+      - ./frontend:/app
+      # Excluir node_modules del mount
+      - /app/node_modules
+    env_file:
+      - ./frontend/.env
+    environment:
+      - VITE_API_URL=http://localhost:8000/api
+    depends_on:
+      - backend
+    networks:
+      - sentimind-network
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  sentimind-network:
+    driver: bridge

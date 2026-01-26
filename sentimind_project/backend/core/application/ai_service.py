@@ -1,4 +1,9 @@
+"""
+Motor de Minería de Texto basado en Transformers.
+Usa el modelo XLM-RoBERTa cargado localmente.
+"""
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+import os
 
 
 class MiningEngine:
@@ -29,8 +34,8 @@ class MiningEngine:
     HYPOTHESIS_TEMPLATE = "Este texto expresa {}"
     
     # Umbral mínimo de confianza (porcentaje del score máximo)
-    # Una emoción secundaria debe tener al menos 97% del score de la primaria
-    RELATIVE_THRESHOLD = 0.97
+    # Una emoción secundaria debe tener al menos 90% del score de la primaria
+    RELATIVE_THRESHOLD = 0.90
     
     # Máximo de emociones a retornar
     MAX_EMOTIONS = 3
@@ -40,23 +45,45 @@ class MiningEngine:
     @classmethod
     def get_classifier(cls):
         if cls._classifier is None:
-            print("🧠 Cargando modelo neuronal multilingüe... (esto pasa solo una vez)")
+            print("[AI] Cargando modelo neuronal multilingue XLM-RoBERTa... (esto pasa solo una vez)")
             
-            # Nombre del modelo multilingüe
+            # Modelo multilingüe potente
             model_name = "joeddav/xlm-roberta-large-xnli"
-            # model= "facebook/bart-large-mnli"
             
-            # Cargar tokenizer con use_fast=False para evitar errores de compatibilidad
-            tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=False)
-            model = AutoModelForSequenceClassification.from_pretrained(model_name)
-            
-            cls._classifier = pipeline(
-                "zero-shot-classification",
-                model=model,
-                tokenizer=tokenizer,
-                device=-1  # CPU (cambiar a 0 para GPU)
-            )
-            print("✅ Modelo multilingüe cargado exitosamente!")
+            try:
+                # Cargar tokenizer con sentencepiece (use_fast=False)
+                print(f"[AI] Cargando tokenizer para {model_name}...")
+                tokenizer = AutoTokenizer.from_pretrained(
+                    model_name, 
+                    use_fast=False,
+                    local_files_only=False
+                )
+                
+                print(f"[AI] Cargando modelo {model_name}...")
+                cls._classifier = pipeline(
+                    "zero-shot-classification",
+                    model=model_name,
+                    tokenizer=tokenizer,
+                    device=-1  # CPU
+                )
+                print(f"[OK] Modelo {model_name} cargado exitosamente!")
+                
+            except Exception as e:
+                print(f"[WARN] Error cargando XLM-RoBERTa: {e}")
+                print("[AI] Intentando con modelo BART (fallback)...")
+                
+                try:
+                    model_name = "facebook/bart-large-mnli"
+                    cls._classifier = pipeline(
+                        "zero-shot-classification",
+                        model=model_name,
+                        device=-1
+                    )
+                    print(f"[OK] Modelo fallback {model_name} cargado!")
+                except Exception as e2:
+                    print(f"[ERROR] Error tambien con fallback: {e2}")
+                    raise RuntimeError(f"No se pudo cargar ningún modelo: {e}, {e2}")
+                
         return cls._classifier
 
     @classmethod
@@ -66,12 +93,14 @@ class MiningEngine:
         
         Returns:
             dict: {
-                "categories": ["Alegría", "Humor"],  # Lista de categorías detectadas
-                "primary_category": "Alegría",       # Categoría principal
-                "primary_confidence": 0.85,          # Confianza de la principal
-                "all_scores": {...}                  # Todos los scores
+                "categories": [{"name": "Alegría", "confidence": 0.85}, ...],
+                "primary_category": "Alegría",
+                "primary_confidence": 0.85,
+                "all_scores": {...}
             }
         """
+        print(f"[AI] Analizando: '{text[:50]}...'")
+        
         classifier = cls.get_classifier()
         
         # Inferencia con multi_label=True para detectar múltiples emociones
@@ -79,7 +108,7 @@ class MiningEngine:
             text, 
             cls.TAXONOMY, 
             hypothesis_template=cls.HYPOTHESIS_TEMPLATE,
-            multi_label=True  # ¡Permite múltiples categorías!
+            multi_label=True
         )
         
         # Crear diccionario de scores
@@ -95,22 +124,22 @@ class MiningEngine:
             if score >= threshold and len(detected_categories) < cls.MAX_EMOTIONS:
                 detected_categories.append({
                     "name": label,
-                    "confidence": score
+                    "confidence": round(score, 2)
                 })
         
         # Si ninguna supera el umbral, tomar la más alta
         if not detected_categories:
             detected_categories = [{
                 "name": result['labels'][0],
-                "confidence": result['scores'][0]
+                "confidence": round(result['scores'][0], 2)
             }]
         
+        print(f"[OK] Resultado: {detected_categories[0]['name']} ({detected_categories[0]['confidence']})")
+        
         return {
-            "categories": detected_categories,  # Lista de categorías con confianza
+            "categories": detected_categories,
             "primary_category": result['labels'][0],
-            "primary_confidence": result['scores'][0],
-            "all_scores": all_scores,
-            # Mantener compatibilidad con versión anterior
-            "top_category": result['labels'][0],
-            "confidence": result['scores'][0]
+            "primary_confidence": round(result['scores'][0], 2),
+            "all_scores": {k: round(v, 2) for k, v in all_scores.items()},
+            "method": "xlm-roberta-local"
         }

@@ -1,0 +1,19 @@
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# Documentación
+*.md
+!README.md
+!DOCUMENTACION.md
+
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+
+# Docker (evitar recursión)
+.docker/

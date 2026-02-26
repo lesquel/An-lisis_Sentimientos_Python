@@ -1,61 +1,163 @@
 {
   "version": "2.0.0",
   "tasks": [
+    // ── Docker ───────────────────────────────────────────────────
     {
-      "label": "Sentimind: Dev Up",
+      "label": "Sentimind: Docker Dev Up (All)",
       "type": "shell",
-      "command": "make dev",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "up", "--runtime", "docker", "--mode", "dev", "--target", "all"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "up", "--runtime", "docker", "--mode", "dev", "--target", "all"] },
       "group": "build",
       "problemMatcher": []
     },
     {
-      "label": "Sentimind: Dev Down",
+      "label": "Sentimind: Docker Dev Up (Backend)",
       "type": "shell",
-      "command": "make down",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "up", "--runtime", "docker", "--mode", "dev", "--target", "backend"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "up", "--runtime", "docker", "--mode", "dev", "--target", "backend"] },
       "problemMatcher": []
     },
     {
-      "label": "Sentimind: Dev Logs",
+      "label": "Sentimind: Docker Dev Up (Frontend)",
       "type": "shell",
-      "command": "make logs",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "up", "--runtime", "docker", "--mode", "dev", "--target", "frontend"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "up", "--runtime", "docker", "--mode", "dev", "--target", "frontend"] },
       "problemMatcher": []
     },
     {
-      "label": "Sentimind: Status",
+      "label": "Sentimind: Docker Dev Down (All)",
       "type": "shell",
-      "command": "make status",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "down", "--runtime", "docker", "--mode", "dev", "--target", "all"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "down", "--runtime", "docker", "--mode", "dev", "--target", "all"] },
       "problemMatcher": []
     },
     {
-      "label": "Sentimind: Backend Tests",
+      "label": "Sentimind: Docker Stop Backend",
       "type": "shell",
-      "command": "make test",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "down", "--runtime", "docker", "--mode", "dev", "--target", "backend"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "down", "--runtime", "docker", "--mode", "dev", "--target", "backend"] },
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Docker Stop Frontend",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "down", "--runtime", "docker", "--mode", "dev", "--target", "frontend"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "down", "--runtime", "docker", "--mode", "dev", "--target", "frontend"] },
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Docker Dev Logs",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "logs", "--mode", "dev", "--target", "all"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "logs", "--mode", "dev", "--target", "all"] },
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Docker Status",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "status", "--mode", "dev"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "status", "--mode", "dev"] },
+      "problemMatcher": []
+    },
+
+    // ── DB ────────────────────────────────────────────────────────
+    {
+      "label": "Sentimind: DB Migrate (Docker)",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "db", "--runtime", "docker", "--mode", "dev", "--action", "migrate"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "db", "--runtime", "docker", "--mode", "dev", "--action", "migrate"] },
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: DB Migrate (Local)",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "db", "--runtime", "local", "--action", "migrate"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "db", "--runtime", "local", "--action", "migrate"] },
+      "problemMatcher": []
+    },
+
+    // ── Local ────────────────────────────────────────────────────
+    {
+      "label": "Sentimind: Local Setup",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "setup"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "setup"] },
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Local Up (Backend)",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "up", "--runtime", "local", "--target", "backend"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "up", "--runtime", "local", "--target", "backend"] },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Local Up (Frontend)",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "up", "--runtime", "local", "--target", "frontend"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "up", "--runtime", "local", "--target", "frontend"] },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Local Up (All)",
+      "dependsOn": [
+        "Sentimind: Local Up (Backend)",
+        "Sentimind: Local Up (Frontend)"
+      ],
+      "dependsOrder": "parallel",
+      "group": "build",
+      "problemMatcher": []
+    },
+
+    // ── Testing / Quality ────────────────────────────────────────
+    {
+      "label": "Sentimind: Backend Tests (Local)",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "test", "--runtime", "local"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "test", "--runtime", "local"] },
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Backend Tests (Docker)",
+      "type": "shell",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "test", "--runtime", "docker", "--mode", "dev"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "test", "--runtime", "docker", "--mode", "dev"] },
       "group": "test",
       "problemMatcher": []
     },
     {
       "label": "Sentimind: Frontend Lint",
       "type": "shell",
-      "command": "make lint",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "lint", "--runtime", "local"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "lint", "--runtime", "local"] },
       "group": "test",
       "problemMatcher": []
     },
     {
       "label": "Sentimind: Health Check",
       "type": "shell",
-      "command": "make health",
-      "problemMatcher": []
-    },
-    {
-      "label": "Sentimind: Prod Up",
-      "type": "shell",
-      "command": "make prod",
-      "problemMatcher": []
-    },
-    {
-      "label": "Sentimind: Prod Down",
-      "type": "shell",
-      "command": "./scripts/down.sh prod",
+      "command": "python3",
+      "args": ["scripts/ctl.py", "health"],
+      "windows": { "command": "py", "args": ["scripts/ctl.py", "health"] },
       "problemMatcher": []
     }
   ]

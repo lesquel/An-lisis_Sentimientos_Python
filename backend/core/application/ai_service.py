@@ -3,6 +3,7 @@ Motor de Mineria de Texto basado en Transformers.
 Usa el modelo XLM-RoBERTa cargado localmente.
 """
 import os
+from pathlib import Path
 
 # Fix para certificados SSL en Windows (PostgreSQL sobrescribe la variable)
 try:
@@ -11,6 +12,14 @@ try:
     os.environ['SSL_CERT_FILE'] = certifi.where()
 except ImportError:
     pass
+
+# Fix HF_HOME: el .env define /app/.cache/huggingface (ruta Docker).
+# Cuando corremos localmente, redirigir a ~/.cache/huggingface.
+_hf_home = os.environ.get('HF_HOME', '')
+if _hf_home.startswith('/app') and not Path('/app').exists():
+    _local_cache = str(Path.home() / '.cache' / 'huggingface')
+    os.environ['HF_HOME'] = _local_cache
+    os.environ.pop('HUGGINGFACE_HUB_CACHE', None)
 
 from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 

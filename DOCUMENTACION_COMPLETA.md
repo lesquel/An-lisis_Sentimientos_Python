@@ -148,8 +148,8 @@ Usuario escribe post --> React captura texto --> Axios envia POST con JWT
 ## 3. ESTRUCTURA DE CARPETAS
 
 ```
-sentimind_project/
-|
+./
+| 
 +-- backend/                          # Servidor Django
 |   +-- authentication/               # App de autenticacion (NUEVO)
 |   |   +-- __init__.py
@@ -1238,7 +1238,7 @@ GET /api/categories/
 ```bash
 # Clonar repositorio
 git clone <repo-url>
-cd sentimind_project/backend
+cd <repo>/backend
 
 # Instalar dependencias
 uv sync
@@ -1256,7 +1256,7 @@ uv run python manage.py runserver
 ### 12.3 Instalacion Frontend
 
 ```bash
-cd sentimind_project/frontend
+cd <repo>/frontend
 
 # Instalar dependencias
 npm install

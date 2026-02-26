@@ -45,10 +45,56 @@ make health     # verificación de endpoints
 
 En VS Code también están disponibles en `Run Task...` con prefijo **Sentimind:**.
 
+## Control multiplataforma (Windows y Linux)
+
+También puedes usar un controlador único en Python para ejecutar todo junto o por servicio.
+
+### Linux / macOS
+
+```bash
+python3 scripts/ctl.py setup
+
+# Docker (todo junto o independiente)
+python3 scripts/ctl.py up --runtime docker --mode dev --target all
+python3 scripts/ctl.py up --runtime docker --mode dev --target backend
+python3 scripts/ctl.py up --runtime docker --mode dev --target frontend
+python3 scripts/ctl.py down --runtime docker --mode dev --target all
+
+# Local (todo junto o independiente)
+python3 scripts/ctl.py up --runtime local --target all
+python3 scripts/ctl.py up --runtime local --target backend
+python3 scripts/ctl.py up --runtime local --target frontend
+
+# Base de datos
+python3 scripts/ctl.py db --runtime docker --action migrate
+python3 scripts/ctl.py db --runtime local --action migrate
+```
+
+### Windows (PowerShell / CMD)
+
+```powershell
+py scripts/ctl.py setup
+
+# Docker
+py scripts/ctl.py up --runtime docker --mode dev --target all
+py scripts/ctl.py up --runtime docker --mode dev --target backend
+py scripts/ctl.py up --runtime docker --mode dev --target frontend
+py scripts/ctl.py down --runtime docker --mode dev --target all
+
+# Local
+py scripts/ctl.py up --runtime local --target all
+py scripts/ctl.py up --runtime local --target backend
+py scripts/ctl.py up --runtime local --target frontend
+
+# Base de datos
+py scripts/ctl.py db --runtime docker --action migrate
+py scripts/ctl.py db --runtime local --action migrate
+```
+
 ## Estructura
 
 ```text
-sentimind_project/
+./
 ├── backend/                # Django + DRF + motor NLP
 ├── frontend/               # React + Vite
 ├── scripts/                # scripts operativos del proyecto

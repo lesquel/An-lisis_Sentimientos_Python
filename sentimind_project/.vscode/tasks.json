@@ -1,0 +1,62 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Sentimind: Dev Up",
+      "type": "shell",
+      "command": "make dev",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Dev Down",
+      "type": "shell",
+      "command": "make down",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Dev Logs",
+      "type": "shell",
+      "command": "make logs",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Status",
+      "type": "shell",
+      "command": "make status",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Backend Tests",
+      "type": "shell",
+      "command": "make test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Frontend Lint",
+      "type": "shell",
+      "command": "make lint",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Health Check",
+      "type": "shell",
+      "command": "make health",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Prod Up",
+      "type": "shell",
+      "command": "make prod",
+      "problemMatcher": []
+    },
+    {
+      "label": "Sentimind: Prod Down",
+      "type": "shell",
+      "command": "./scripts/down.sh prod",
+      "problemMatcher": []
+    }
+  ]
+}

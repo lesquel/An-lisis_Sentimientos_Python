@@ -7,7 +7,6 @@ from core.infrastructure.serializers import PostSerializer
 from core.application.ai_service import MiningEngine
 import traceback
 
-
 class IsAuthenticatedOrReadOnly(permissions.BasePermission):
     """Permite lectura a todos, escritura solo a autenticados."""
     def has_permission(self, request, view):
@@ -86,7 +85,7 @@ class PostListCreateView(generics.ListCreateAPIView):
             
             # 4. Serializar respuesta
             serializer = self.get_serializer(post)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            
             
         except Exception as e:
             print(f"Error creando post: {e}")

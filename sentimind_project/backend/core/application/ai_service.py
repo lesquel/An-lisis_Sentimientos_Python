@@ -1,9 +1,18 @@
 """
-Motor de Minería de Texto basado en Transformers.
+Motor de Mineria de Texto basado en Transformers.
 Usa el modelo XLM-RoBERTa cargado localmente.
 """
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 import os
+
+# Fix para certificados SSL en Windows (PostgreSQL sobrescribe la variable)
+try:
+    import certifi
+    os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+    os.environ['SSL_CERT_FILE'] = certifi.where()
+except ImportError:
+    pass
+
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 
 
 class MiningEngine:
